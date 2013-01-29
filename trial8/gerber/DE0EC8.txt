@@ -1,0 +1,34 @@
+ガーバーデータ RS274X
+
+基板名 DE0EC8
+
+DE0EC8.cmp : component  部品面パターンデータ
+DE0EC8.drd : drill      ドリルデータ
+DE0EC8.dri : drill      ドリルリスト
+DE0EC8.gpi : report     レポートファイル
+DE0EC8.out : outline    外形線データ
+DE0EC8.plc : cmp silk   部品面シルクデータ
+DE0EC8.pls : sol silk   半田面シルクデータ
+DE0EC8.sol : solder     半田面パターンデータ
+DE0EC8.rtc : cmp resist 部品面レジストデータ
+DE0EC8.rts : sol resist 半田面レジストデータ
+
+DE0EC8.stc : cmp mask   未使用(部品面ペーストデータ)
+DE0EC8.sts : sol mask   未使用(半田面ペーストデータ)
+
+DE0EC8.ref : reference  基板概要
+
+基板サイズ 107.77mm x 80mm
+
+外形加工 ルーター加工あり
+
+router
+(0mm,59.69mm)-(68.58mm,59.69mm)
+(68.58mm,59.69mm)-(68.59mm,44.45mm)
+(68.59mm,44.45mm)-(99.06mm,44.45mm)
+(99.06mm,44.45mm)-(99.06mm,70.72mm)
+(99.06mm,70.72mm)-(107.77mm,70.72mm)
+(101.2mm,70.72mm)-(101.2mm,80mm)
+
+基板外形からはみ出すシルクデータ、およびルーターで削られれるシルクデータはそのままでかまいません。
+
