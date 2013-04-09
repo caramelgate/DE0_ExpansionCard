@@ -1,0 +1,10 @@
+PLL_Name	alt_altpll_50x25x125:pll_50x25x125|altpll:altpll_component|alt_altpll_50x25x125_altpll:auto_generated|pll1
+PLLJITTER	35
+PLLSPEmax	84
+PLLSPEmin	-53
+
+PLL_Name	alt_pll_50x100x100d:pll_50x100x100d|altpll:altpll_component|pll
+PLLJITTER	30
+PLLSPEmax	84
+PLLSPEmin	-53
+

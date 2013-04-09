@@ -1,0 +1,34 @@
+DE0拡張基板のテスト
+
+○ アナログRGBとDVI出力
+
+640x480 VGA解像度で表示します。
+DIGITAL(HDMIコネクタ)からDVI信号を出力します。
+
+○ OPTICAL-IN(SPDIF-IN)とDAC出力
+
+44.1KHz 16ビットまたは48KHz 16ビットのSPDIF信号をΔΣDACを使ってオーディオ信号に変換します。
+
+○ PS2マウス
+
+DIGILENTのサイトから以下のコンポーネントをダウンロードして追加するとPS2ポートのテストができます。
+
+digilent mouse reference component
+digilent mouse displayer reference component
+
+mouse_controller.vhd
+mouse_displayer.vhd
+MouseRefComp.vhd
+ps2interface.vhd
+resolution_mouse_informer.vhd
+
+USBコネクタにUSB/PS2両対応のマウスを接続し、DP/DMを両方プルアップすることでPS2モードでうごかします。
+de0ec8.vを書き換えることで、メインボードのPS2コネクタと切り替えできます。
+
+注意
+rx_decode.vhdとrx_phase_det.vhdはOpenCoresに登録されているspdif-ifです。
+このライセンスはLGPLです。
+
+注意
+基本的にライセンスはAS-ISですが、合成時に取り込んだファイルのライセンスに影響を受ける場合があります。
+

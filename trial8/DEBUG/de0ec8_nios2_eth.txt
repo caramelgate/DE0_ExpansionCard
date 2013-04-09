@@ -1,0 +1,35 @@
+イーサネットの動作テスト
+
+Nios2 uClinuxを使ってイーサネットの動作テストをおこないます。
+uClinuxが起動した後の操作はterminal.PNGも参照のこと。
+nios2の構成はnios2.sopcを参照のこと。
+
+(1)QuartusII Programmerを起動し、de0_nios2_time_limited.sofでDE0をコンフィグレーションします。
+
+(2)NiosII EDSのNiosII Command Shellを起動します。
+
+(3)zImage_eth_11dec05が存在する場所に移動します。
+
+(4)nios2-download -g zImage_eth_11dec05 でダウンロードします。
+
+(5)nios2-terminal でターミナルを起動します。
+
+(6)ifconfig eth0 up でイーサネットを有効にします。
+
+(7)dhcpcd & でDHCPクライアントを起動します。適当なDHCPサーバーを用意してください。
+
+(8)ifconfig でステータスを確認します。うまくいけばIPアドレス(IPv4)が取得できます。
+
+(9)mii-tool -w & でMII-TOOLを起動します。PHYのレジスタを読み出してステータスを表示します。
+
+注意
+eth-ocm(igor-mac)はOpenCoresに登録されているイーサネットMACです。
+このライセンスはLGPLです。
+
+注意
+基本的にライセンスはAS-ISですが、合成時に取り込んだファイルのライセンスに影響を受ける場合があります。
+
+注意
+zImage_eth_11dec05はビルド環境を破棄してしまったので内容の説明はできません。
+nios2.sopcを基にすればビルドできると思います。
+
