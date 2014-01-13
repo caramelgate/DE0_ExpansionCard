@@ -1,0 +1,343 @@
+;
+; Orignal IPL  (under X1IPL)
+;
+
+; ★固定番地でなければならない物
+;
+;		offset_066 … NMIリセット
+;		offset_1CF … IPL overlay
+;		offset_21A … Disk Read
+
+;-----------------------------------------------------------------------------
+
+TXTCUR		equ		0ff80h
+TXTATR		equ		0ff86h
+
+DRV_NUM		equ		0ff87h
+ERR_RET		equ		0ff8ah
+
+
+			org		0
+
+main:			ld		sp, 0
+				ld		a,0
+				ld		bc,0
+				ld		d,a
+				ld		e,a
+				ld		h,a
+				ld		l,a
+				ld		ix,0
+				ld		iy,0
+				exx
+				ld		a,0
+				ld		bc,0
+				ld		d,a
+				ld		e,a
+				ld		h,a
+				ld		l,a
+				call	init
+;;				call	txtram_clear	; <-- debug : skip
+;;				ld		de, welcome_msg	; <-- 
+;;				call	txt_print		; <--
+;;				call	vram_clear		; <--
+;;				ld		de, finding_msg	; <--
+;;				call	txt_print
+				call	isdriveready
+				jr		c, fdcnotready
+				call	loadfirstsec
+				call	imagecheck
+				jr		nz, nosyserr
+				call	execsysfile
+mine:			jr		mine
+
+fdcnotready:	ld		de, notfound_msg
+				jr		errorend
+nosyserr:		ld		de, nosystem_msg
+				jr		errorend
+fdcerror:		ld		de, error_msg
+errorend:		call	txt_print
+				ld		bc, 0ffch
+				xor		a
+				out		(c), a
+error_mine:		jr		error_mine
+
+
+
+
+init:			ld		hl, 0
+				ld		(TXTCUR), hl
+				ld		a, 7
+				ld		(TXTATR), a
+
+				ld		hl, fdcerror
+				ld		(ERR_RET), hl
+				xor		a
+				ld		(DRV_NUM), a
+
+				ld		bc, 1800h
+				ld		a, 1
+				out		(c), a
+				inc		c
+				ld		a, 40
+				out		(c), a
+				ret
+
+;------------------------------------------------------------ NMI
+
+				nop
+				nop
+offset_066:		jp		main
+
+;------------------------------------------------------------ txt sub
+
+txtram_clear:	ld		bc, 2000h
+				ld		h, 7
+				call	txtram_clrst
+				ld		b, 30h
+				ld		h, 20h
+txtram_clrst:	ld		de, 800h
+txtram_clrlp:	out		(c),h
+				inc		bc
+				dec		de
+				ld		a, d
+				or		e
+				jr		nz, txtram_clrlp
+				ret
+
+txt_print:		ld		a, (de)
+				or		a
+				ret		z
+				call	txt_print1
+				inc		de
+				jr		txt_print
+
+
+txt_print1:		ld		hl, (TXTCUR)
+				cp		20h
+				jr		c, ctrlcode
+				push	bc
+				call	calc_txtadrs
+				push	af
+				ld		a, (TXTATR)
+				out		(c), a
+				set		4, b				; 	or	b, 10h
+				pop		af
+				out		(c), a
+				inc		l
+				ld		(TXTCUR), hl
+				pop		bc
+				ret
+
+
+ctrlcode:		cp		0dh
+				jr		z, cur_cr
+				ret
+cur_cr:			ld		l, 0
+				inc		h
+				ld		(TXTCUR), hl
+				ret
+
+calc_txtadrs:	push	de
+				push	hl
+				pop		de
+				ld		l, h
+				ld		h, 0
+				push	hl
+				pop		bc
+				add		hl, hl			; 40 = (4+1) * 8
+				add		hl, hl
+				add		hl, bc
+				add		hl, hl
+				add		hl, hl
+				add		hl, hl
+				ld		c, e
+				ld		b, 20h
+				add		hl, bc
+				push	hl
+				pop		bc
+				push	de
+				pop		hl
+				pop		de
+				ret
+
+;------------------------------------------------------------ vram sub
+
+vram_clear:		ld		bc, 1a02h
+				ld		a, 60h
+				out		(c),a
+				ld		a, 40h
+				out		(c),a
+				ld		bc, 0
+				ld		h, 0
+				ld		de, 4000h
+				call	txtram_clrlp
+				in		a,(c)
+				ret
+
+
+isdriveready:	ld		bc, 0ffch
+				ld		a, 80h
+				out		(c), a
+				ld		c, 0f8h
+				ld		d, 4
+				ld		hl, 0
+readychk_lp:	in		a, (c)
+				jp		p, driveready
+				dec		hl
+				ld		a, l
+				or		h
+				jr		nz, readychk_lp
+				dec		d
+				jr		nz, readychk_lp
+				scf
+				ret
+driveready:		and		a
+				ret
+
+;------------------------------------------------------------ fdc sub
+
+fdcctrl:		call	fdcwait					; b = 0fh
+				out		(c), a
+fdcwait:		push	af
+				ld		c, 0f8h
+fdcwaitlp:		in		a, (c)
+				rrca
+				jr		c, fdcwaitlp
+				pop		af
+				ret
+
+
+loadfirstsec:	ld		de, 0
+				ld		hl, 0fe00h
+				ld		a, 1
+
+file_read:		ex		af, af'
+				ld		a, e
+				rlca
+				rl		d
+				rlca
+				rl		d
+				rlca
+				rl		d
+				rlca
+				rl		d
+				ld		a, e
+				and		0fh
+				ld		e, a
+fread_lp:		ld		a, (DRV_NUM)
+				and		0fh
+				or		80h
+				bit		0, d
+				jr		z, diskface0
+				or		10h
+diskface0:		ld		bc, 0ffch
+				out		(c), a
+				ld		a, d
+				srl		a
+				ld		c, 0fbh
+				out		(c), a
+				ld		a, 10h
+				call	fdcctrl
+fread_trklp:	inc		e
+				ld		c, 0fah
+				out		(c), e
+				ld		c, 0f8h
+				in		a, (c)
+				and		98h
+				jr		z, fread_skok
+				call	motor_off
+				ld		hl, (ERR_RET)
+				ex		(sp), HL
+				ret
+
+fread_skok:		ld		a, 80h
+				out		(c), a
+read1sec_lp:	ld		c, 0f8h
+				in		a, (c)
+				rrca
+				jr		nc, read1sec_ed
+				rrca
+				jr		nc, read1sec_lp
+				ld		c, 0fbh
+				in		a, (c)
+				ld		(hl), a
+				inc		hl
+				jr		read1sec_lp
+read1sec_ed:	ex		af, af'
+				dec		a
+				jr		z, fread_ed
+				ex		af, af'
+
+				ld		a, e
+				cp		10h
+				jr		c, fread_trklp
+				inc		d
+				ld		e, 0
+				jr		fread_lp
+
+fread_ed:		ld		a, 2
+				call	fdcctrl
+motor_off:		ld		a, (DRV_NUM)
+				and		0fh
+				ld		c, 0fch
+				out		(c), a
+				ret
+
+
+
+imagecheck:		ld		hl, 0fe00h
+				ld		a, (hl)
+				cp		1
+				ret		nz
+				ld		l, 0eh
+				ld		a, (hl)
+				cp		'S'
+				ret		nz
+				inc		hl
+				ld		a, (hl)
+				cp		'y'
+				ret		nz
+				inc		hl
+				ld		a, (hl)
+				cp		's'
+				ret
+
+nosystem_msg	db	"No system files!", 0
+
+execsysfile:	ld		hl, 0fe00h
+				ld		de, 0ff00h
+				ld		bc, 20h
+				ldir
+				dec		d
+				ld		e, 0eh
+				xor		a
+				ld		(de), a
+				ld		e, 01h
+				call	txt_print
+
+offset_1CF:		ld		hl, (0ff12h)		; length
+				dec		hl
+				inc		h
+				ld		a, h
+				ld		hl, (0ff14h)		; adrs
+				ld		de, (0ff1eh)		; trk, sec
+				call	file_read
+
+				ld		hl, prog_run
+				ld		de, 0ff78h
+				ld		bc, 6
+				ldir
+				ld		hl, (0ff16h)		; startadrs
+				jp		0ff78h
+prog_run:		ld		bc, 01e00h
+				out		(c), a
+				jp		(hl)
+
+
+welcome_msg		db	"X1EMU IPL version 1.01", 13, 0
+notfound_msg	db	"not found!", 0, 0
+offset_21A		jp	file_read
+finding_msg		db	"Searching FD images...", 0
+error_msg		db	"FDC error!", 0
+
+	end
