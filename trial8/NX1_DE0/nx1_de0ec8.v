@@ -16,7 +16,7 @@ module nx1_de0ec8 #(
 	parameter	def_sram=0,				// main memory sdr / syncram
 	parameter	def_reso=2,				// screen resoluton 0=800x480 / 1=1024x600 / 2=1024x768
 	parameter	def_use_ipl=1,			// fast simulation : ipl skip
-	parameter	def_EXTEND_BIOS=0,		// extend BIOS MENU & NoICE-Z80 resource-free monitor
+//	parameter	def_EXTEND_BIOS=0,		// extend BIOS MENU & NoICE-Z80 resource-free monitor
 	parameter	SIM_FAST=0,				// fast simulation
 	parameter	DEBUG=0,				// 
 	parameter	def_MBASE=32'h00000000,	// main memory base address
@@ -1049,7 +1049,7 @@ generate
 	if (def_sram==1)
 begin
 
-alt_altsyncram_c3dp8x4k dpram8x16k(
+alt_altsyncram_c3dp8x4k dpram8x4k(
 	.data(cbus_wdata),
 	.rdaddress(sa[13:0]),
 	.rdclock(sys_clk),
@@ -1089,7 +1089,7 @@ alt_altsyncram_rom8x4k rom_ipl(
 nx1_top #(
 	.def_DEVICE(def_DEVICE),			// 0=Xilinx , 1=Altera
 	.def_X1TURBO(0),					// 0=X1 , 1=X1turbo (subset yet) , 2=X1TURBOZ (future...)
-	.def_EXTEND_BIOS(def_EXTEND_BIOS),	// extend BIOS MENU & NoICE-Z80 resource-free monitor
+//	.def_EXTEND_BIOS(def_EXTEND_BIOS),	// extend BIOS MENU & NoICE-Z80 resource-free monitor
 	.def_use_ipl(def_use_ipl),			// fast simulation : ipl skip
 	.SIM_FAST(SIM_FAST),				// fast simulation
 	.DEBUG(DEBUG),						// 

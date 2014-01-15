@@ -41,57 +41,11 @@
 
 ****************************************************************************/
 
-//---------------------------------------------------------------------------
-// hardware type select
-//---------------------------------------------------------------------------
-//`define X1TURBO      // X1turbo (subset yet)
-//`define X1TURBOZ     // future...
-//---------------------------------------------------------------------------
-// Z80CPU core select
-//---------------------------------------------------------------------------
-//`define USE_FZ80C    // choice fz80 (altanate TV80)
-//---------------------------------------------------------------------------
-// VIDEO encoder
-//---------------------------------------------------------------------------
-//`define VGA_CONV     // x2 up-scan conveter for VGA output
-//`define NTSC_S2    // NTSC S2 encoder with 2x4bit DAC
-//---------------------------------------------------------------------------
-// sound unit seelctor
-//---------------------------------------------------------------------------
-//`define PSG        // AY-3-8910 PSG sound & 1bit DAC
-//`define FM_BOARD   // YM2151 FM sound board (not supported yet)
-//---------------------------------------------------------------------------
-// additional and support circuit
-//---------------------------------------------------------------------------
-//`define PCG_AUTO_WAIT  // PCG auto wait trap for fast Z80 IP or overclock
-//`define EXTEND_BIOS  // extend BIOS MENU & NoICE-Z80 resource-free monitor
-//`define FAKE_KANJI_VRAM // dummp KANJI ROM register for X1turbo check
-//`define OVER_CLOCK  // 8MHz overclock mode
-//---------------------------------------------------------------------------
-// for DEBUG
-//---------------------------------------------------------------------------
-//`define NO_VIDEO    // disable VIDEO OUTPUT
-//`define DEBUG_UV_DLY  // adjust NTSC Y/UV delay
-//`define DMA_TEST
-// --------------------------
-// make internal switch
-// --------------------------
-// CTC select
-//`ifdef X1TURBO
-//  `define Z80_CTC
-//`endif
-//`ifdef FM_BOARD
-//  `ifndef Z80_CTC
-//  `define Z80_CTC
-//  `endif
-//`endif
-
-
 module nx1_top #(
 	parameter	def_DEVICE=0,			// 0=Xilinx , 1=Altera
 	parameter	def_X1TURBO=0,			// 0=X1 , 1=X1turbo (subset yet) , 2=X1TURBOZ (future...)
 	parameter	def_FM_BOARD=0,			// YM2151 FM sound board (not supported yet)
-	parameter	def_EXTEND_BIOS=0,		// extend BIOS MENU & NoICE-Z80 resource-free monitor
+//	parameter	def_EXTEND_BIOS=0,		// extend BIOS MENU & NoICE-Z80 resource-free monitor
 	parameter	def_use_ipl=1,			// fast simulation : ipl skip
 	parameter	SIM_FAST=0,				// fast simulation
 	parameter	DEBUG=0,				// fast simulation
@@ -150,11 +104,6 @@ module nx1_top #(
 	output			O_CBUS_BANK_GRAM_R,	// out   [cpu]
 	output			O_CBUS_BANK_GRAM_W,	// out   [cpu]
 
-//	output	[13:0]	O_GRAM_A,			// out   [crtc] vram addr
-//	input	[7:0]	I_GRAM_D_R,			// out   [crtc] vram red
-//	input	[7:0]	I_GRAM_D_G,			// out   [crtc] vram grn
-//	input	[7:0]	I_GRAM_D_B,			// out   [crtc] vram blu
-
 	input	 		I_PS2_CLK,			// in    [sub] ps2 kbd-clk
 	input	 		I_PS2_DAT,			// in    [sub] ps2 kbd-dat
 	output			O_PS2_CLK_T,		// out   [sub] ps2 kbd-clk oe
@@ -169,13 +118,6 @@ module nx1_top #(
 	output	[15:0]	PCM_L,				// out   [psg]
 	output	[15:0]	PCM_R,				// out   [psg]
 
-//`ifdef NTSC_S2
-//// NTSC S1 Video out
-//	output	[3:0]	O_VY,	// na : ntsc video
-//	output	[3:0]	O_VC,	// na : ntsc video
-//`endif
-
-// Front Panel
 	output	[3:0]	O_LED_FDD_RED,		// out   [led]
 	output	[3:0]	O_LED_FDD_GREEN,	// out   [led]
 
@@ -186,9 +128,9 @@ module nx1_top #(
 	output			O_LED_POWER,		// out   [led]
 	output			O_LED_TIMER,		// out   [led]
 	output			O_LED_HIRESO,		// out   [led] turbo
-  	input	[3:0]	I_DSW,				// in    [sw] turbo
-  	output			O_LED_ANALOG,		// out   [led] turboz
-  	input	[1:0]	I_ZDSW,				// in    [sw] turboz
+	input	[3:0]	I_DSW,				// in    [sw] turbo
+	output			O_LED_ANALOG,		// out   [led] turboz
+	input	[1:0]	I_ZDSW,				// in    [sw] turboz
 
 	input	[7:0]	I_JOYA,				// in    [psg]
 	input	[7:0]	I_JOYB,				// in    [psg]
@@ -249,24 +191,6 @@ wire clk32M    = I_CLK32M;
 /****************************************************************************
   basic clock divider
 ****************************************************************************/
-
-//reg [3:0] pris32m;
-//reg cpu_clk;     // Z80 clock 4MHz / 8MHz
-//
-//always @(posedge clk32M or posedge clk_reset)
-//begin
-//  if(clk_reset)
-//  begin
-//  pris32m <= 4'b0000;
-//  cpu_clk <= 0;
-//  end else begin
-//  pris32m  <= pris32m + 1;
-//  if(pris32m[0] & (pris32m[1]|ext_8mhz) )
-//    cpu_clk  <= ~cpu_clk;
-//  end
-//end
-/* wire clk8M = pris32m[1]; */
-//wire clk2M   = pris32m[3];
 
 	reg [3:0] pris32m;
 
@@ -377,42 +301,40 @@ wire H_INT_n;
 wire [7:0] H_DR;
 
 
-generate
-	if (def_EXTEND_BIOS==1)
-begin
-
-noicez80 noicez80 (
-  .I_REM_CLK(I_USART_CLK),
-  .I_REM_CLKE(I_USART_CLKEN16),
-  .I_REM_RXD(I_USART_RX),
-  .O_REM_TXD(O_USART_TX),
-  .O_REM_MODE(debug_mode),
-  .I_TRAP_ENABLE(ext_trap_en),
-  .O_BANK(ice_bank),
-// Inputs
-  .I_RESET_n(ZRESET_n),
-  .I_CLK(ZCLK),
-  .I_INT_n(ZINT_n),
-  .I_NMI_n(ZNMI_n),
-  .I_M1_n(ZM1_n),
-  .I_MREQ_n(H_MREQ_n),
-  .I_IORQ_n(ZIORQ_n),
-  .I_RD_n(ZRD_n),
-  .I_WR_n(ZWR_n),
-  .I_HALT_n(ZHALT_n),
-  .I_A(ZA),
-  .I_DW(ZDO),
-  .I_DR(ZDI),
-  // Outputs (hooked)
-  .O_MREQ_n(ZMREQ_n),
-  .O_NMI_n(H_NMI_n),
-  .O_INT_n(H_INT_n),
-  .O_DR(H_DR)
-);
-
-end
-	else
-begin
+//generate
+//	if (def_EXTEND_BIOS==1)
+//begin
+//noicez80 noicez80 (
+//  .I_REM_CLK(I_USART_CLK),
+//  .I_REM_CLKE(I_USART_CLKEN16),
+//  .I_REM_RXD(I_USART_RX),
+//  .O_REM_TXD(O_USART_TX),
+//  .O_REM_MODE(debug_mode),
+//  .I_TRAP_ENABLE(ext_trap_en),
+//  .O_BANK(ice_bank),
+//// Inputs
+//  .I_RESET_n(ZRESET_n),
+//  .I_CLK(ZCLK),
+//  .I_INT_n(ZINT_n),
+//  .I_NMI_n(ZNMI_n),
+//  .I_M1_n(ZM1_n),
+//  .I_MREQ_n(H_MREQ_n),
+//  .I_IORQ_n(ZIORQ_n),
+//  .I_RD_n(ZRD_n),
+//  .I_WR_n(ZWR_n),
+//  .I_HALT_n(ZHALT_n),
+//  .I_A(ZA),
+//  .I_DW(ZDO),
+//  .I_DR(ZDI),
+//  // Outputs (hooked)
+//  .O_MREQ_n(ZMREQ_n),
+//  .O_NMI_n(H_NMI_n),
+//  .O_INT_n(H_INT_n),
+//  .O_DR(H_DR)
+//);
+//end
+//	else
+//begin
 
 	assign debug_mode=1'b0;
 	assign ice_bank[3:0]=4'b0;
@@ -422,8 +344,8 @@ begin
 	assign H_INT_n=ZINT_n;
 	assign H_DR=ZDI;
 
-end
-endgenerate
+//end
+//endgenerate
 
 fz80c Z80(
   .reset_n(ZRESET_n),
@@ -440,36 +362,6 @@ fz80c Z80(
 );
 
 	assign ZRFSH_n=1'b1;
-
-//`ifdef USE_FZ80C
-//fz80c Z80(
-//`else
-//tv80c Z80(
-//`endif
-//  .reset_n(ZRESET_n),
-//  .clk(ZCLK),
-//`ifdef EXTEND_BIOS
-//  .mreq_n(H_MREQ_n), 
-//  .int_n(H_INT_n),
-//  .nmi_n(H_NMI_n),
-//  .di(H_DR),
-//`else
-//  .mreq_n(ZMREQ_n), 
-//  .int_n(ZINT_n),
-//  .nmi_n(ZNMI_n),
-//  .di(ZDI),
-//`endif
-//  .A(ZA), .do(ZDO),
-//  .m1_n(ZM1_n), .iorq_n(ZIORQ_n), 
-//  .rd_n(ZRD_n), .wr_n(ZWR_n),
-//`ifdef  DMA_TEST
-//  .wait_n(ZWAIT_n & ~switch[0]), .rfsh_n(ZRFSH_n),.halt_n(ZHALT_n),
-//  .busrq_n(ZBUSRQ_n & ~(button[1]&button[0])),.busak_n(ZBUSAK_n)
-//`else
-//  .wait_n(ZWAIT_n), .rfsh_n(ZRFSH_n),.halt_n(ZHALT_n),
-//  .busrq_n(ZBUSRQ_n),.busak_n(ZBUSAK_n)
-//`endif
-//);
 
 	wire	zcke;
 	wire	zckn;
@@ -531,38 +423,6 @@ wire dma_mreq_n,dma_iorq_n,dma_rd_n,dma_wr_n;
 wire dma_sel;
 
 wire [7:0] sdi;
-
-// SYNC / ASYNC BUS SIGNAL SELECTOR
-//`define SYNC_Z80_BUS
-//`ifdef  SYNC_Z80_BUS
-//// SYNC / LATCHED Z80 BUS
-//reg [7:0] sdo;
-//reg  [3:0]  sbank;
-//reg [15:0] sa;
-//reg sm1_n,smreq_n,sireq_n,srd_n,swr_n;
-//always @(posedge clk32M or negedge ZRESET_n)
-//begin
-//  if(~ZRESET_n)
-//  begin
-//  sbank <= 0;
-//  sa    <= 16'h0000;
-//  sdo   <= 8'h00;
-//  smreq_n <= 1'b1;
-//  sireq_n <= 1'b1;
-//  srd_n <= 1'b1;
-//  swr_n <= 1'b1;
-//  end else begin
-//  sbank <= dma_sel ? dma_bank : ice_bank;
-//  sa    <= dma_sel ? dma_a    : ZA;
-//  sdo   <= dma_sel ? dma_do   : ZDO;
-//  smreq_n <= dma_sel ? dma_mreq_n : ZMREQ_n;
-//  sireq_n <= dma_sel ? dma_iorq_n : ZIORQ_n;
-//  srd_n <= dma_sel ? dma_rd_n : ZRD_n;
-//  swr_n <= dma_sel ? dma_wr_n : ZWR_n;
-//  end
-//end
-//`else
-// ASYNC / NON LATCHED Z80 BUS
 
 wire [3:0]  sbank;
 wire [15:0] sa;
@@ -925,7 +785,6 @@ assign T_JOYB = 1'b1;
 
 wire [7:0] PSG_OUT;
 
-//`ifdef PSG
 wire [9:0] PSG_OUT_A,PSG_OUT_B,PSG_OUT_C;
 
 ay8910 PSG(
@@ -951,15 +810,8 @@ ay8910 PSG(
 );
 
 wire [11:0] PSG_MIX = PSG_OUT_A + PSG_OUT_B + PSG_OUT_C + {pcm_out,2'b00};
-// PCM output
 assign PCM_L = {PSG_MIX,4'b0000};
 assign PCM_R = {PSG_MIX,4'b0000};
-//`else
-//assign psg_dr = joy_mux_a;
-//assign PCM_L = 0;
-//assign PCM_R = 0;
-//`endif
-
 
 /****************************************************************************
   mode swithes
@@ -1036,22 +888,11 @@ nx1_tmode #(
 /****************************************************************************
   VIDEO circuit
 ****************************************************************************/
-//wire vclk = clk28M636;
-//wire vclk = EX_CLK;//clk32M;
-//wire [4:0] vid_q; // video timming
 
 wire vid_re;
 wire [7:0] vid_dr;
 
 wire vwait;
-
-//wire [7:0] txt_dr , att_dr , ktxt_dr;
-
-//wire [13:0] vaddr;
-
-//wire [10:0] cg_a;
-//wire [7:0]  cg_dr,pcgb_dr,pcgr_dr,pcgg_dr;
-//wire [7:0]  grb_dr,grr_dr,grg_dr;
 
 	wire	[7:0] red;
 	wire	[7:0] green;
@@ -1099,7 +940,6 @@ nx1_vid #(
 	.vram_rd_error(vram_rd_error),					// in    [VRAM] rd err
 
 	.I_RESET(sys_reset),
-// CPU I/F
 	.I_CCLK(clk32M),//ZCLK),
 	.I_CCKE(zcke),//ZCLK),
   .I_A(sa),
@@ -1109,19 +949,14 @@ nx1_vid #(
   .I_WR(~swr_n),
   .I_RD(~srd_n),
   .O_VWAIT(vwait),
-// CHIP SELECT
   .defchr_enable(defchr_enable),
   .I_CRTC_CS(crtc_cs),
   .I_CG_CS(cg_cs),
   .I_PAL_CS(pal_cs),
   .I_TXT_CS(text_cs), .I_ATT_CS(attr_cs), .I_KAN_CS(ktext_cs),
   .I_GRB_CS(gr_b_cs), .I_GRR_CS(gr_r_cs), .I_GRG_CS(gr_g_cs),
-// VIDEO CLOCK
   .I_VCLK(EX_CLK),  .I_CLK1(clk1),
-//  .O_VQ(vid_q),
-// VIDEO MODE
   .I_W40(width40),
-//`ifdef X1TURBO
   .I_HIRESO(hireso),
   .I_LINE400(line400),
   .I_TEXT12(text12),
@@ -1133,31 +968,12 @@ nx1_vid #(
   .I_GR0_BLACK(gr0_black),
   .I_GR1_BLACK(gr1_black),
   .I_BLK_BLACK(blk_black),
-//`endif
-// VRAM / GRAM
-//  .O_VA(vaddr),
-// VRAM
-//  .O_TXT_WE(), .O_ATT_WE(), .O_KAN_WE(),
-//  .I_TXT_D(txt_dr),  .I_ATT_D(att_dr),.I_KAN_D(ktxt_dr),
-// GRAM
-//  .O_GRB_WE(), .O_GRR_WE(), .O_GRG_WE(),
-//  .I_GRB_D(grb_dr) , .I_GRR_D(grr_dr),  .I_GRG_D(grg_dr),
-// CG ROM/RAM
-
 	.text_rdata(text_rd),
 	.attr_rdata(attr_rd),
 	.ktext_rdata(ktext_rd),
 
 	.cg_rdata(cg_mux_dr),
 
-//	.O_CGA(cg_a),
-//	.cg_vdata(cg_dr),
-//	.pcgb_vdata(pcgb_dr),
-//	.pcgr_vdata(pcgr_dr),
-//	.pcgg_vdata(pcgg_dr),
-//  .I_CG_D(cg_dr) ,
-//  .I_PCGB_D(pcgb_dr) , .I_PCGR_D(pcgr_dr) , .I_PCGG_D(pcgg_dr),
-// VIDEO OUTPUT
 	.O_R(O_VGA_R)  ,
 	.O_G(O_VGA_G)   ,
 	.O_B(O_VGA_B),
@@ -1180,22 +996,8 @@ nx1_vid #(
 /****************************************************************************
   X1 soft sync PCG wait TRAP
 ****************************************************************************/
-//`ifdef PCG_AUTO_WAIT
-//wire cg_auto_wait_n;
-//pcg_wait pcg_wait(
-//  .I_RESET(sys_reset),
-//  .I_CCLK(ZCLK),
-//  .I_CG_CS(cg_cs),
-//  .I_A(sa),
-//  .I_VDISP(vblank_n),
-//  .I_QD(vid_q[4]),
-//  .I_RA0(vaddr[11]),
-//  .O_CG_WAIT_n(cg_auto_wait_n)
-//);
-//assign cg_wait_n = pcg_wait_n & cg_auto_wait_n;
-//`else
+
 assign cg_wait_n = pcg_wait_n;
-//`endif
 
 //`ifdef Z80_CTC
 /****************************************************************************
@@ -1272,236 +1074,21 @@ assign sio_rd = (def_X1TURBO==0) ? 8'b0 : 8'h00;
   ATTR / TEXT / KANJI VRAM
 ****************************************************************************/
 
-// VRAM R/W bus
-//wire [10:0] ca;
-//wire cwe,crd;
-//wire [10:0] vram_addr;
-//assign ca   = sa[10:0];
-//assign cwe    = ~swr_n;
-//assign crd    = ~srd_n;
-//nx1_dpram2k #(
-//	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
-//) text_ram (
-//// CPU I/F
-//  .CCLK(clk32M),//ZCLK),
-//  .CA(ca),
-//  .CDI(sdo),
-//  .CDO(text_rd),
-//  .CCS(text_cs),
-//  .CWE(cwe & zcke),
-//  .CRD(crd),
-//// VIDEO 
-//  .VCLK(EX_CLK),
-//  .VA(vaddr[10:0]),
-//  .VDO(txt_dr)
-//);
-//nx1_dpram2k #(
-//	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
-//) att_ram (
-//// CPU I/F
-//  .CCLK(clk32M),//ZCLK),
-//  .CA(ca),
-//  .CDI(sdo),
-//  .CDO(attr_rd),
-//  .CCS(attr_cs),
-//  .CWE(cwe & zcke),
-//  .CRD(crd),
-//// VIDEO 
-//  .VCLK(EX_CLK),
-//  .VA(vaddr[10:0]),
-//  .VDO(att_dr)
-//);
-////`ifdef X1TURBO
-////`ifdef FAKE_KANJI_VRAM
-////// KANJI VRAM , fake port
-////reg [7:0] ktext_fake_d;
-////always @(posedge ZCLK)
-////begin
-////  if(ktext_cs & cwe)
-////  ktext_fake_d <= sdo;
-////end
-////assign ktext_rd = ktext_fake_d;
-////`else // FAKE_KANJI_VRAM
-//nx1_dpram2k #(
-//	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
-//) kanji_ram (
-//// CPU I/F
-//  .CCLK(clk32M),//ZCLK),
-//  .CA(ca),
-//  .CDI(sdo),
-//  .CDO(ktext_rd),
-//  .CCS(ktext_cs),
-//  .CWE(cwe & zcke),
-//  .CRD(crd),
-//// VIDEO 
-//  .VCLK(EX_CLK),
-//  .VA(vaddr[10:0]),
-//  .VDO(ktxt_dr)
-//);
-////`endif // FAKE_KANJI_VRAM
-////`endif // X1TURBO
-
 ///****************************************************************************
 //  CG ROM
 //****************************************************************************/
-//x1_cg8 x1_cg8( .I_CLK(EX_CLK), .I_ADDR(cg_a), .O_DATA(cg_dr) );
+
 /****************************************************************************
   PCG RAM
 ****************************************************************************/
-
-//wire cg_wr   = cg_cs & ~swr_n & defchr_enable & cg_wait_n;
-//wire pcgb_wr = cg_wr & (sa[9:8]==2'b01); // 15xx
-//wire pcgr_wr = cg_wr & (sa[9:8]==2'b10); // 16xx
-//wire pcgg_wr = cg_wr & (sa[9:8]==2'b11); // 17xx
-//// CPU CG read
-//assign cg_mux_dr =
-//  (sa[9:8]==2'b00) ? cg_dr   :
-//  (sa[9:8]==2'b01) ? pcgb_dr :
-//  (sa[9:8]==2'b10) ? pcgr_dr :
-//           pcgg_dr ;
-//nx1_dpram2k #(
-//	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
-//) pcg_b_ram (
-//// CPU I/F
-//  .CCLK(clk32M),//ZCLK),
-//  .CA(cg_a),
-//  .CDI(sdo),
-//  .CDO(),
-//  .CCS(1'b1),
-//  .CWE(pcgb_wr & zcke),
-//  .CRD(1'b1),
-//// VIDEO 
-//  .VCLK(EX_CLK),
-//  .VA(cg_a),
-//  .VDO(pcgb_dr)
-//);
-//nx1_dpram2k #(
-//	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
-//) pcg_r_ram (
-//// CPU I/F
-//  .CCLK(clk32M),//ZCLK),
-//  .CA(cg_a),
-//  .CDI(sdo),
-//  .CDO(),
-//  .CCS(1'b1),
-//  .CWE(pcgr_wr & zcke),
-//  .CRD(1'b1),
-//// VIDEO 
-//  .VCLK(EX_CLK),
-//  .VA(cg_a),
-//  .VDO(pcgr_dr)
-//);
-//nx1_dpram2k #(
-//	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
-//) pcg_g_ram (
-//// CPU I/F
-//  .CCLK(clk32M),//ZCLK),
-//  .CA(cg_a),
-//  .CDI(sdo),
-//  .CDO(),
-//  .CCS(1'b1),
-//  .CWE(pcgg_wr & zcke),
-//  .CRD(1'b1),
-//// VIDEO 
-//  .VCLK(EX_CLK),
-//  .VA(cg_a),
-//  .VDO(pcgg_dr)
-//);
 
 /****************************************************************************
   video converter
 ****************************************************************************/
 
-//wire pclk_en = width40 ? ~vid_q[0] : ~vid_q[1];
-//wire pclk_en = width40 ? vid_q[0] : ~vid_q[1];
-
-//`ifdef NO_VIDEO
-//assign O_VGA_R = 0;
-//assign O_VGA_G = 0;
-//assign O_VGA_B = 0;
-//assign O_VGA_HS =0;
-//assign O_VGA_VS =0;
-//assign O_VGA_DE =0;
-//assign O_VGA_CLK =0;
-//`else //NO_VIDEO
-
-//`ifdef VGA_CONV
-///* VGA upscanconverter */
-//
-//wire vc_r,vc_g,vc_b;
-//wire vc_hsync,vc_vsync;
-//
-//dbl_scan dbl_scan(
-//  .I_CLK(clk28M636),
-////
-//  .I_ICLK_EN(pclk_en),
-//  .I_R(red),
-//  .I_G(green),
-//  .I_B(blue),
-//  .I_HSYNC(hsync),
-//  .I_VSYNC(vsync),
-////
-//  .I_OCLK_EN(1'b1),
-//  .O_R(vc_r),
-//  .O_G(vc_g),
-//  .O_B(vc_b),
-//  .O_HSYNC(vc_hsync),
-//  .O_VSYNC(vc_vsync)
-//);
-//
-//assign O_VGA_R = (vc_r==1'b1) ? 8'hff : 8'h00;
-//assign O_VGA_G = (vc_g==1'b1) ? 8'hff : 8'h00;
-//assign O_VGA_B = (vc_b==1'b1) ? 8'hff : 8'h00;
-//assign O_VGA_HS = vc_hsync;
-//assign O_VGA_VS = vc_vsync;
-//assign O_VGA_DE =0;
-//assign O_VGA_CLK =0;
-//`else // VGA_CONV
-//	assign O_VGA_R=red;
-//	assign O_VGA_G=green;
-//	assign O_VGA_B=blue;
-//	assign O_VGA_HS=hsync;
-//	assign O_VGA_VS=vsync;
-//	assign O_VGA_DE=0;
-//	assign O_VGA_CLK=0;
-//`endif // VGA_CONV
-//`endif // NO_VIDEO
-
 ///****************************************************************************
 //  NTSC video converter
 //****************************************************************************/
-//`ifdef NTSC_S2
-//wire [1:0] sc = width40 ? ~{vid_q[2:1]} : ~{vid_q[3:2]};
-//
-//`ifdef DEBUG_UV_DLY
-//reg [3:0] du,dv;
-//always @(posedge ZCLK)
-//begin
-//  if(sa[15:8]==0 && ~sireq_n && ~swr_n)
-//  {du,dv} <= sdo;
-//end
-//`endif // DEBUG_UV_DLY
-//
-//ntsc_enc ntsc_enc(
-//  .I_CLK(clk28M636),
-////
-//  .I_ICLK_EN(pclk_en),
-//  .I_SC(sc),
-//  .I_R(red),
-//  .I_G(green),
-//  .I_B(blue),
-//  .I_DISP(vblank_n),
-//  .I_HSYNC(hsync),
-//  .I_VSYNC(vsync),
-////
-//`ifdef DEBUG_UV_DLY
-//  .I_DU(du),
-//  .I_DV(dv),
-//`endif //DEBUG_UV_DLY
-//  .O_Y(O_VY),
-//  .O_C(O_VC)
-//);
-//`endif //NTSC_S2
 
 /****************************************************************************
   external SRAM
@@ -1524,12 +1111,6 @@ assign O_CBUS_CS_GRAMG = gr_g_cs;
 assign O_CBUS_BANK_GRAM_R = (def_X1TURBO==0) ? 1'b1 : gram_rp;
 assign O_CBUS_BANK_GRAM_W = (def_X1TURBO==0) ? 1'b1 : gram_wp;
 //`endif
-
-// External VIDEO Bus
-//assign O_GRAM_A = vaddr;
-//assign grr_dr = I_GRAM_D_R;
-//assign grg_dr = I_GRAM_D_G;
-//assign grb_dr = I_GRAM_D_B;
 
 /****************************************************************************
   SPI I/F

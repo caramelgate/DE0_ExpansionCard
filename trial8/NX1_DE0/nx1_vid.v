@@ -40,8 +40,6 @@
 
 ****************************************************************************/
 
-//`define X1TURBO
-//`define BORDER_BLACK /* neecesary for VGA(analog RGB) */
 `define FAST_SQUE  /* 8dot left sque,save some circuit */
 
 module nx1_vid #(
@@ -121,14 +119,6 @@ module nx1_vid #(
 
 	output			O_YM,
 
-//	output	[13:0]	O_VA,
-//	input	[7:0]	I_TXT_D,
-//	input	[7:0]	I_ATT_D,
-//	input	[7:0]	I_KAN_D,
-//	input	[7:0]	I_GRB_D,
-//	input	[7:0]	I_GRR_D,
-//	input	[7:0]	I_GRG_D,
-
 	output	[10:0]	O_CGA,
 
 	output	[7:0]	text_rdata,
@@ -136,15 +126,6 @@ module nx1_vid #(
 	output	[7:0]	ktext_rdata,
 
 	output	[7:0]	cg_rdata,
-
-//	output	[7:0]	cg_vdata,
-//	output	[7:0]	pcgb_vdata,
-//	output	[7:0]	pcgr_vdata,
-//	output	[7:0]	pcgg_vdata,
-//	input	[7:0]	I_CG_D,
-//	input	[7:0]	I_PCGB_D,
-//	input	[7:0]	I_PCGR_D,
-//	input	[7:0]	I_PCGG_D,
 
 	output	[7:0]	O_R,
 	output	[7:0]	O_G,
@@ -174,12 +155,6 @@ module nx1_vid #(
 	wire	pcgb_wr;
 	wire	pcgr_wr;
 	wire	pcgg_wr;
-
-//	assign vram_cmd_en=1'b0;
-//	assign vram_cmd_instr[2:0]=3'b0;
-//	assign vram_cmd_bl[5:0]=6'b0;
-//	assign vram_cmd_byte_addr[29:0]=30'b0;
-//	assign vram_rd_en=1'b0;
 
 //	wire	[7:0] text_rdata;
 //	wire	[7:0] attr_rdata;
@@ -230,7 +205,6 @@ nx1_cg8 #(
 nx1_dpram2k #(
 	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
 ) pcg_b_ram (
-// CPU I/F
   .CCLK(I_CCLK),//ZCLK),
   .CA(O_CGA[10:0]),
   .CDI(I_D[7:0]),
@@ -238,7 +212,6 @@ nx1_dpram2k #(
   .CCS(1'b1),
   .CWE(pcgb_wr & I_CCKE),
   .CRD(1'b1),
-// VIDEO 
   .VCLK(I_VCLK),
   .VA(O_CGA[10:0]),
   .VDO(pcgb_vdata[7:0])
@@ -247,7 +220,6 @@ nx1_dpram2k #(
 nx1_dpram2k #(
 	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
 ) pcg_r_ram (
-// CPU I/F
   .CCLK(I_CCLK),//ZCLK),
   .CA(O_CGA[10:0]),
   .CDI(I_D[7:0]),
@@ -255,7 +227,6 @@ nx1_dpram2k #(
   .CCS(1'b1),
   .CWE(pcgr_wr & I_CCKE),
   .CRD(1'b1),
-// VIDEO 
   .VCLK(I_VCLK),
   .VA(O_CGA[10:0]),
   .VDO(pcgr_vdata[7:0])
@@ -264,7 +235,6 @@ nx1_dpram2k #(
 nx1_dpram2k #(
 	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
 ) pcg_g_ram (
-// CPU I/F
   .CCLK(I_CCLK),//ZCLK),
   .CA(O_CGA[10:0]),
   .CDI(I_D[7:0]),
@@ -272,7 +242,6 @@ nx1_dpram2k #(
   .CCS(1'b1),
   .CWE(pcgg_wr & I_CCKE),
   .CRD(1'b1),
-// VIDEO 
   .VCLK(I_VCLK),
   .VA(O_CGA[10:0]),
   .VDO(pcgg_vdata[7:0])
@@ -281,7 +250,6 @@ nx1_dpram2k #(
 nx1_dpram2k #(
 	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
 ) text_ram (
-// CPU I/F
   .CCLK(I_CCLK),//ZCLK),
   .CA(I_A[10:0]),
   .CDI(I_D[7:0]),
@@ -289,7 +257,6 @@ nx1_dpram2k #(
   .CCS(I_TXT_CS),
   .CWE(I_WR & I_CCKE),
   .CRD(I_RD),
-// VIDEO 
   .VCLK(I_VCLK),
   .VA(O_VA[10:0]),
   .VDO(text_vdata[7:0])
@@ -298,7 +265,6 @@ nx1_dpram2k #(
 nx1_dpram2k #(
 	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
 ) att_ram (
-// CPU I/F
   .CCLK(I_CCLK),//ZCLK),
   .CA(I_A[10:0]),
   .CDI(I_D[7:0]),
@@ -306,7 +272,6 @@ nx1_dpram2k #(
   .CCS(I_ATT_CS),
   .CWE(I_WR & I_CCKE),
   .CRD(I_RD),
-// VIDEO 
   .VCLK(I_VCLK),
   .VA(O_VA[10:0]),
   .VDO(attr_vdata[7:0])
@@ -315,7 +280,6 @@ nx1_dpram2k #(
 nx1_dpram2k #(
 	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
 ) kanji_ram (
-// CPU I/F
   .CCLK(I_CCLK),//ZCLK),
   .CA(I_A[10:0]),
   .CDI(I_D[7:0]),
@@ -323,53 +287,10 @@ nx1_dpram2k #(
   .CCS(I_KAN_CS),
   .CWE(I_WR & I_CCKE),
   .CRD(I_RD),
-// VIDEO 
   .VCLK(I_VCLK),
   .VA(O_VA[10:0]),
   .VDO(ktext_vdata[7:0])
 );
-
-
-/////////////////////////////////////////////////////////////////////////////
-// video timming generator
-/////////////////////////////////////////////////////////////////////////////
-//	assign O_VQ = {QD,QC,QB,QA,QP};
-//reg ppres;
-//reg [3:0] pris;
-//reg vid_reset;
-//	always @(posedge I_VCLK or posedge I_RESET)
-//	begin
-//		if (I_RESET==1'b1)
-//			begin
-//				ppres <= 1'b0;
-//				pris <= 4'b0;
-//			end
-//		else
-//			begin
-//				ppres <= ~ppres & I_W40;
-//				pris <= (~ppres) ? pris + 1 : pris;
-//			end
-//	end
-//always @(posedge I_VCLK or posedge I_RESET)
-//begin
-//  if(I_RESET)
-//  begin
-//    vid_reset <= 1'b1;
-//  end else begin
-//    if(pris==4'b1111)
-//      vid_reset <= 1'b0;
-//  end
-//end
-//wire QP = ppres;
-//wire QA = ~pris[0]; // 14.31818   : 21.47727
-//wire QB = ~pris[1]; //  7.15909   : 10.738635
-//wire QC = ~pris[2]; //  3.579545  :  5.3693175
-//wire QD = ~pris[3]; //  1.7897725 :  2.68465875
-//assign O_VQ = {QD,QC,QB,QA,QP};
-//	wire	QDE;
-//	wire	QDN;
-//	assign QDE=({QD,QC,QB,QA,QP}==5'b00000) ? 1'b1 : 1'b0;
-//	assign QDN=({QD,QC,QB,QA,QP}==5'b10000) ? 1'b1 : 1'b0;
 
 /****************************************************************************
   CRTC
@@ -379,14 +300,6 @@ wire [13:0] crtc_ma;
 wire crtc_hsync;
 wire crtc_vsync;
 wire crtc_disptmg;
-
-	wire	tp_hsav;
-	wire	tp_heav;
-	wire	tp_vsav;
-	wire	tp_veav;
-	wire	tp_exhs;
-	wire	tp_exvs;
-	wire	tp_ras;
 
 	wire	vclk_cyc0;
 	wire	vclk_cyc1;
@@ -1014,19 +927,6 @@ end
 			(DEBUG==1) & (disp_d==1'b0) ? 8'h1f :
 			8'h0;
 
-
-//	assign O_B[7:0]={tp_hsav,crtc_ra[0],crtc_ma[0],out_col[0],out_col[0],3'b0};
-//	assign O_R[7:0]={tp_ra,crtc_ra[1],crtc_ma[1],out_col[1],out_col[1],3'b0};
-//	assign O_G[7:0]={tp_heav,crtc_ra[2],crtc_ma[2],out_col[2],out_col[2],3'b0};
-
-//	wire	tp_hsav;
-//	wire	tp_heav;
-//	wire	tp_vsav;
-//	wire	tp_veav;
-//	wire	tp_exhs;
-//	wire	tp_exvs;
-//	wire	tp_ra;
-
 //`ifdef X1TURBO
 assign O_YM = ym_r;
 //`endif
@@ -1046,12 +946,5 @@ assign O_VDISP = vdisp;
 assign O_D  = 8'h00;
 assign O_DE = 1'b0;
 assign O_VWAIT = 1'b0; //!!!!!
-
-//assign O_TXT_WE = 1'b0;
-//assign O_ATT_WE = 1'b0;
-//assign O_KAN_WE = 1'b0;
-//assign O_GRB_WE = 1'b0;
-//assign O_GRR_WE = 1'b0;
-//assign O_GRG_WE = 1'b0;
 
 endmodule
