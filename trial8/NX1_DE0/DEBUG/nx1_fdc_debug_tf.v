@@ -404,7 +404,7 @@ fz80c Z80(
 				if ((wr_r==1'b1) & (ADDR[15:0]==16'h0ff9)) $display("FDC TRAC WR %4H %2H",ADDR,wdata_r);
 				if ((wr_r==1'b1) & (ADDR[15:0]==16'h0ffa)) $display("FDC SECT WR %4H %2H",ADDR,wdata_r);
 				if ((wr_r==1'b1) & (ADDR[15:0]==16'h0ffb)) $display("FDC DATA WR %4H %2H",ADDR,wdata_r);
-				if ((rd_r==1'b1) & (ADDR[15:0]==16'h0ffb) & (faddr[19:8]!=12'h000)) $stop;
+			//	if ((rd_r==1'b1) & (ADDR[15:0]==16'h0ffb) & (faddr[19:8]!=12'h000)) $stop;
 			end
 	end
 
@@ -435,11 +435,11 @@ fz80c Z80(
 	assign ram_wait_n=1'b1;
 	assign ram_rdata[7:0]=(ram_cs==1'b1) ? dpram8x16k_rdata[7:0] : 8'b0;
 
-alt_altsyncram_c3dp8x4k dpram8x4k(
+alt_altsyncram_c3dp8x16k dpram8x16k(
 	.data(WDATA[7:0]),
-	.rdaddress(ADDR[11:0]),
+	.rdaddress(ADDR[13:0]),
 	.rdclock(!CLK32),
-	.wraddress(ADDR[11:0]),
+	.wraddress(ADDR[13:0]),
 	.wrclock(!CLK32),
 	.wren(ram_cs & !WR_N),
 	.q(dpram8x16k_rdata[7:0])
@@ -482,6 +482,15 @@ n8877 #(
 	.clk(CLK32)
 );
 
+	assign frdata[15:8]=frdata[7:0];
+
+alt_altsyncram_rom8x16k fdd(
+	.address(faddr[13:0]),
+	.clock(CLK32),
+	.q(frdata[7:0])
+);
+
+/*
 	assign {frdata[7:0],frdata[15:8]}=
 			(faddr[8:1]==8'h00) ? 16'h0120 :	// 01," "
 			(faddr[8:1]==8'h01) ? 16'h2122 :	// "  "
@@ -500,5 +509,6 @@ n8877 #(
 			(faddr[8:1]==8'h0e) ? 16'hab_89 :	// 
 			(faddr[8:1]==8'h0f) ? 16'h10_00 :	// sect 0010
 			16'he5e5;
+*/
 
 endmodule

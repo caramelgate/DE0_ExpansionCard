@@ -178,8 +178,16 @@ assign O_GRG_CS  = iorq_r&((I_A[15:14]==2'b11)^I_DAM); // C000-FFFF --G / BR-
 
 // CS on system I/O
 //`ifdef FMBOARD
-assign O_FM_CS      = (def_FM_BOARD==1'b0) ? 1'b0 : miocs & (I_A[12:8]==5'h07) & ~I_A[2]; // 0700-0703
-assign O_FMCTC_CS  = (def_FM_BOARD==1'b0) ? 1'b0 : miocs & (I_A[12:8]==5'h07) &  I_A[2]; // 0704-0707
+assign O_FM_CS      =
+		(def_FM_BOARD==1'b0) & (def_X1TURBO!=2) ? 1'b0 :
+		(def_FM_BOARD==1'b0) & (def_X1TURBO==2) ? miocs & (I_A[12:8]==5'h07) & ~I_A[2] : // 0700-0703
+		(def_FM_BOARD==1'b1) ? miocs & (I_A[12:8]==5'h07) & ~I_A[2] : // 0700-0703
+		1'b0;
+assign O_FMCTC_CS  = 
+		(def_FM_BOARD==1'b0) & (def_X1TURBO!=2) ? 1'b0 :
+		(def_FM_BOARD==1'b0) & (def_X1TURBO==2) ? miocs & (I_A[12:8]==5'h07) &  I_A[2] : // 0704-0707
+		(def_FM_BOARD==1'b1) ? miocs & (I_A[12:8]==5'h07) &  I_A[2] : // 0704-0707
+		1'b0;
 //`endif
 
 //`ifdef X1TURBO
@@ -210,7 +218,8 @@ assign O_IPL_RES_CS = miocs & (I_A[12:8]==5'h1e);        // 1exx
 wire   io1fxx = (def_X1TURBO==0) ? 1'b0 : miocs & (I_A[12:7]==6'b1_1111_1); // 1f80-1fff
 assign O_DMA_CS     = (def_X1TURBO==0) ? 1'b0 : io1fxx & (I_A[6:4]==3'b000);    // 1F8x
 assign O_SIO_CS     = (def_X1TURBO==0) ? 1'b0 : io1fxx & (I_A[6:2]==5'b001_00); // 1F90-1F93
-assign O_CTC_CS     = (def_X1TURBO==0) ? 1'b0 : io1fxx & (I_A[6:2]==5'b010_00); // 1FA0-1FA3
+assign O_CTC_CS     = (def_X1TURBO==1) ? io1fxx & (I_A[6:2]==5'b010_00) : 1'b0;// 1FA0-1FA3
+
 //`ifdef X1TURBOZ
 // 1FB0 ZMODE
 // 1FB9-1FBF Z TEXT PALETTE

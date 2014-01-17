@@ -7,6 +7,7 @@
 //------------------------------------------------------------------------------
 //  2013/nov/28 release 0.0  modifyed and downgrade for de1(altera cyclone2)
 //  2014/jan/10 release 0.1  preview
+//       jan/17 release 0.1a +FDC
 //
 //------------------------------------------------------------------------------
 
@@ -85,6 +86,10 @@ module nx1_top #(
 	output			z_ioreq,			// out   [CPU] vram select
 	output	[3:0]	z_vplane,			// out   [CPU] vram plane select
 	output			z_multiplane,		// out   [CPU] vram multiplane write
+
+	output	[19:0]	faddr,				// out   [FDD] flash addr
+	output			frd,				// out   [FDD] flash oe
+	output	[15:0]	frdata,				// in    [FDD] flash read data
 
 	input			I_RESET,			// in    [sys] reset
 	input			I_CLK32M,			// in    [sys] clk 32MHz(33MHz)
@@ -173,7 +178,7 @@ module nx1_top #(
 ****************************************************************************/
 wire ext_8mhz    = 1'b0;
 
-wire ext_ipl_kill  = 1'b0;
+//wire ext_ipl_kill  = 1'b0;
 wire ext_trap_en   = 1'b0; // NMI break & boot No-ICE Monitor
 //`ifdef X1TURBO
 wire defchr_enable = (def_X1TURBO==0) ? 1'b1 : ~I_DEFCHR_SW;
@@ -289,8 +294,8 @@ wire ZCLK, ZINT_n, ZRESET_n, ZWAIT_n;
 wire ZNMI_n , ZHALT_n;
 wire ZBUSRQ_n , ZBUSAK_n;
 
-wire debug_mode;
-wire [3:0] ice_bank;
+//wire debug_mode;
+//wire [3:0] ice_bank;
 wire cg_wait_n;
 
 //`ifdef EXTEND_BIOS
@@ -336,8 +341,8 @@ wire [7:0] H_DR;
 //	else
 //begin
 
-	assign debug_mode=1'b0;
-	assign ice_bank[3:0]=4'b0;
+//	assign debug_mode=1'b0;
+//	assign ice_bank[3:0]=4'b0;
 	assign O_USART_TX=1'b0;
 	assign ZMREQ_n=H_MREQ_n;
 	assign H_NMI_n=ZNMI_n;
@@ -371,7 +376,7 @@ fz80c Z80(
 
 assign ZNMI_n = I_NMI_n;
 assign ZCLK   = cpu_clk;
-assign ZWAIT_n  = cg_wait_n & I_CBUS_WAIT_n;
+//assign ZWAIT_n  = cg_wait_n & I_CBUS_WAIT_n;
 assign ZRESET_n = ~sys_reset;
 
 /****************************************************************************
@@ -429,15 +434,21 @@ wire [15:0] sa;
 wire sm1_n,smreq_n,siorq_n,srd_n,swr_n;
 	wire	[7:0] sdo;
 
-assign sbank   = dma_sel ? dma_bank   : ice_bank;
-assign sa    = dma_sel ? dma_a    : ZA;
-assign smreq_n = dma_sel ? dma_mreq_n : ZMREQ_n;
-assign sireq_n = dma_sel ? dma_iorq_n : ZIORQ_n;
-assign srd_n   = dma_sel ? dma_rd_n   : ZRD_n;
-assign swr_n   = dma_sel ? dma_wr_n   : ZWR_n;
+	assign sbank[3:0]=4'b0;
+	assign sa[15:0]=ZA[15:0];
+	assign smreq_n=ZMREQ_n;
+	assign sireq_n=ZIORQ_n;
+	assign srd_n=ZRD_n;
+	assign swr_n=ZWR_n;
+	assign sdo[7:0]=ZDO[7:0];
 
-assign sdo     = dma_sel ? dma_do   : ZDO;
-
+//assign sbank   = dma_sel ? dma_bank   : ice_bank;
+//assign sa    = dma_sel ? dma_a    : ZA;
+//assign smreq_n = dma_sel ? dma_mreq_n : ZMREQ_n;
+//assign sireq_n = dma_sel ? dma_iorq_n : ZIORQ_n;
+//assign srd_n   = dma_sel ? dma_rd_n   : ZRD_n;
+//assign swr_n   = dma_sel ? dma_wr_n   : ZWR_n;
+//assign sdo     = dma_sel ? dma_do   : ZDO;
 //`endif
 
 assign ZDI    = sdi;
@@ -465,8 +476,8 @@ z80_reti z80_reti(
 /****************************************************************************
   Address Decoder
 ****************************************************************************/
-wire ipl_enable;
-wire dam_enable;
+//wire ipl_enable;
+//wire dam_enable;
 
 wire ipl_sel;
 wire dam;
@@ -507,11 +518,12 @@ wire black_cs;
 wire dipsw_cs;
 //`endif
 
-assign ipl_enable = ~debug_mode & ~ext_ipl_kill & ZRFSH_n;
-assign dam_enable = ~debug_mode;
+//assign ipl_enable = ~debug_mode & ~ext_ipl_kill & ZRFSH_n;
+//assign dam_enable = ~debug_mode;
 
 nx1_adec #(
 	.def_X1TURBO(def_X1TURBO),		// 0=X1 , 1=X1turbo (subset yet) , 2=X1TURBOZ (future...)
+	.def_FDC(1),					// onboard fdc
 	.def_FM_BOARD(def_FM_BOARD)		// YM2151 FM sound board (not supported yet)
 ) nx1_adec (
   .I_RESET(sys_reset),
@@ -519,8 +531,8 @@ nx1_adec #(
   .I_A(sa),
   .I_MREQ_n(smreq_n),.I_IORQ_n(sireq_n),.I_RD_n(srd_n),.I_WR_n(swr_n),
 // mode / switch
-  .I_IPL_SEL(ipl_sel & ipl_enable),
-  .I_DAM(dam & dam_enable),
+  .I_IPL_SEL(ipl_sel),// & ipl_enable),
+  .I_DAM(dam),// & dam_enable),
   .I_DEFCHR(defchr_enable),
 // memory
   .O_IPL_CS(ipl_cs),.O_RAM_CS(ram_cs),
@@ -562,8 +574,8 @@ nx1_adec #(
 );
 
 // subcpu debug download mode
-wire firm_en = 1'b0;//I_FIRMWARE_EN;
-wire firm_cs = firm_en & ~ZMREQ_n;
+//wire firm_en = 1'b0;//I_FIRMWARE_EN;
+//wire firm_cs = firm_en & ~ZMREQ_n;
 
 // data input
 wire [7:0] sram_dr;   // MAIN RAM
@@ -575,21 +587,18 @@ wire [7:0] cg_mux_dr; // CG / PSG
 wire [7:0] pia_dr;    // PIA8255
 wire [7:0] psg_dr;    // PSG (JOYSTICK)
 
-//`ifdef Z80_CTC
 wire [7:0] ctc_rd;    // Z80 CTC
 wire ctc_doe;
-//`endif
-//`ifdef FM_BOARD
 wire [7:0] fm_rd;   // YM2151
-//`endif
-//`ifdef X1TURBO
-//wire [7:0] dma_rd;    // Z80 DMAC
+wire [7:0] dma_rd;    // Z80 DMAC
 wire [7:0] sio_rd;    // Z80 SIO
 wire [7:0] ktext_rd;  // KANJI VRAM
 
+	wire	fd5_wait_n;
+	wire	[7:0] fd5_rdata;
+
 wire dma_doe = 1'b0;
 wire sio_doe = 1'b0;
-//`endif
 
 // address decoder
 wire sub_doe;
@@ -598,16 +607,14 @@ wire sram_doe = ipl_cs | ram_cs | gr_b_cs | gr_r_cs | gr_g_cs;
 //	localparam busfree=8'h00;	// or tie
 	localparam busfree=8'hff;	// and tie
 
+assign ZWAIT_n  = cg_wait_n & I_CBUS_WAIT_n & fd5_wait_n;
+
 assign sdi    =
-//`ifdef Z80_CTC
+	fd5_cs ? fd5_rdata :
   ctc_doe   ? ctc_rd  :
-//`endif
-//`ifdef X1TURBO
-//  dma_doe   ? dma_rd  :
+  dma_doe   ? dma_rd  :
   sio_doe   ? sio_rd  :
-//`endif
   sub_doe   ? sub_rd  :
-//
   cg_cs     ? cg_mux_dr :
   pia_cs    ? pia_dr  :
   psg_cs    ? psg_dr  :
@@ -615,13 +622,33 @@ assign sdi    =
   sram_doe    ? sram_dr :
   text_cs   ? text_rd :
   attr_cs   ? attr_rd :
-//`ifdef X1TURBO
   ktext_cs    ? ktext_rd :
-//`endif
-//`ifdef FM_BOARD
   fm_cs     ? fm_rd :
-//`endif
   8'hff;
+
+
+n8877 #(
+	.def_wp(4'b1111),
+	.busfree(busfree)
+) (
+	.faddr(faddr[19:0]),			// out   [MEM] addr
+	.frd(frd),						// out   [MEM] rd req
+	.frdata(frdata[15:0]),			// in    [MEM] read data
+
+	.addr(ZA[2:0]),
+	.wdata(sdo[7:0]),
+	.rdata(fd5_rdata[7:0]),
+	.wr(!swr_n),
+//	input			req,
+//	output			ack,
+
+	.cs(({fd5_cs,swr_n}==2'b10) | ({fd5_cs,srd_n}==2'b10)),
+	.wait_n(fd5_wait_n),
+
+	.rst_n(!sys_reset),
+	.clk(clk32M)
+);
+
 
 /****************************************************************************
   SUB CPU
@@ -646,10 +673,10 @@ wire [7:0] pcm_out; // SEEK SOUND
 wire clk1;   // for text Blink
 
 // firmware download
-wire sub_reset = sys_reset | firm_en;
+wire sub_reset = sys_reset;// | firm_en;
 
 // DMA / fdd emu
-assign dma_sel = (~ZRFSH_n | ~ZBUSAK_n) & ~firm_en;
+assign dma_sel = 1'b0;//(~ZRFSH_n | ~ZBUSAK_n) & ~firm_en;
 
 nx1_sub #(
 	.RAM_DEPTH(11),
@@ -678,26 +705,26 @@ nx1_sub #(
   .O_INT_n(sub_int_n),
 // SUBCPU Firmware Access Port
   .I_fa(sa[12:0]),
-  .I_fcs(firm_cs),
+  .I_fcs(1'b0),//firm_cs),
 // FD emulation
   .O_FDC_DRQ_n(fd5_drq),
-  .I_FDCS(fd5_cs),
-  .I_RFSH_n(ZRFSH_n),
-  .I_RFSH_STB_n(H_MREQ_n),
+  .I_FDCS(1'b0),//fd5_cs),
+  .I_RFSH_n(1'b1),//ZRFSH_n),
+  .I_RFSH_STB_n(1'b1),//H_MREQ_n),
 //
-  .I_DMA_CS(dma_cs),
+  .I_DMA_CS(1'b0),//dma_cs),
   .O_DMA_BANK(dma_bank),
   .O_DMA_A(dma_a),
-  .I_DMA_D(dma_di),
+  .I_DMA_D(7'b0),//dma_di),
   .O_DMA_D(dma_do),
   .O_DMA_MREQ_n(dma_mreq_n),
   .O_DMA_IORQ_n(dma_iorq_n),
   .O_DMA_RD_n(dma_rd_n),
   .O_DMA_WR_n(dma_wr_n),
   .O_DMA_BUSRQ_n(ZBUSRQ_n),
-  .I_DMA_BUSAK_n(ZBUSAK_n),
-  .I_DMA_RDY(fd5_drq),
-  .I_DMA_WAIT_n(ZWAIT_n),
+  .I_DMA_BUSAK_n(1'b1),//ZBUSAK_n),
+  .I_DMA_RDY(1'b0),//fd5_drq),
+  .I_DMA_WAIT_n(1'b0),//ZWAIT_n),
   .I_DMA_IEI(dma_iei),
   .O_DMA_INT_n(dma_int_n),
   .O_DMA_IEO(dma_ieo),
@@ -746,7 +773,7 @@ wire cmt_read = 1'b0;
 	assign pia_b[7:0]=(def_X1TURBO==0) ? {vblank_n,sub_tx_bsy,sub_rx_bsy,1'b1,lpt_rdy,vsync,cmt_read,key_brk_n} : {vblank_n,sub_tx_bsy,sub_rx_bsy,ipl_sel,lpt_rdy,vsync,cmt_read,key_brk_n};
 
 wire lpt_stb   = pia_c[7];
-wire width40   = (DEBUG==1) ? 1'b1 : pia_c[6];
+wire width40   = (DEBUG==1) ? 1'b1 : pia_c[6];	// <-- disp width debug
 wire dam_en_n  = pia_c[5]; // DOUJI ACCESS fall trigger
 wire sm_scrl_n = pia_c[4]; // smooth scroll (L)
 
@@ -1012,10 +1039,7 @@ assign cg_wait_n = pcg_wait_n;
 
 	wire	z80ctc_cs;
 
-	assign z80ctc_cs=
-			(def_X1TURBO==1) ? ctc_cs : 
-			(def_X1TURBO==2) ? fm_ctc_cs : 
-			1'b0;
+	assign z80ctc_cs=ctc_cs;
 
 wire [3:0] ctc_to;
 wire [3:0] ctc_ti;
@@ -1067,7 +1091,7 @@ assign sio_rd = (def_X1TURBO==0) ? 8'b0 : 8'h00;
   Z80DMA
 ****************************************************************************/
 //`ifdef X1TURBO
-//assign dma_rd = 8'h00;
+assign dma_rd = 8'h00;
 //`endif
 
 /****************************************************************************
@@ -1102,14 +1126,14 @@ assign sram_dr     = I_CBUS_DATA;
 assign O_CBUS_RD_n = srd_n;
 assign O_CBUS_WR_n = swr_n;
 assign O_CBUS_CS_IPL = ipl_cs;
-assign O_CBUS_CS_MRAM = ram_cs & ~firm_cs; // block SUB-CPU FIRM CS
+assign O_CBUS_CS_MRAM = ram_cs;// & ~firm_cs; // block SUB-CPU FIRM CS
 assign O_CBUS_CS_GRAMB = gr_b_cs;
 assign O_CBUS_CS_GRAMR = gr_r_cs;
 assign O_CBUS_CS_GRAMG = gr_g_cs;
 
 //`ifdef X1TURBO
-assign O_CBUS_BANK_GRAM_R = (def_X1TURBO==0) ? 1'b1 : gram_rp;
-assign O_CBUS_BANK_GRAM_W = (def_X1TURBO==0) ? 1'b1 : gram_wp;
+assign O_CBUS_BANK_GRAM_R = (def_X1TURBO==0) ? 1'b0 : gram_rp;
+assign O_CBUS_BANK_GRAM_W = (def_X1TURBO==0) ? 1'b0 : gram_wp;
 //`endif
 
 /****************************************************************************

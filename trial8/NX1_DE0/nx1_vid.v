@@ -585,7 +585,7 @@ endgenerate
 			(vram_cmd_state_r==vcst12) & (vram_hdisp_r[3]==1'b0) ? vcst12 :
 			vcst00;
 
-	assign 	vram_cmd_en_w=
+	assign vram_cmd_en_w=
 			(vram_cmd_state_r==vcst02) & (vram_cmd_empty==1'b1) ? 1'b1 :
 			(vram_cmd_state_r==vcst03) ? 1'b1 :
 			(vram_cmd_state_r==vcst04) ? 1'b1 :

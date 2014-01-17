@@ -8,6 +8,7 @@
 //  2013/nov/28 release 0.0  modifyed and downgrade for de1(altera cyclone2)
 //  2014/jan/01 release 0.0a de0(cyclone3)
 //       jan/10 release 0.1  preview
+//       jan/17 release 0.1a +FDC
 //
 //------------------------------------------------------------------------------
 
@@ -16,6 +17,7 @@ module nx1_de0ec8 #(
 	parameter	def_sram=0,				// main memory sdr / syncram
 	parameter	def_reso=2,				// screen resoluton 0=800x480 / 1=1024x600 / 2=1024x768
 	parameter	def_use_ipl=1,			// fast simulation : ipl skip
+	parameter	def_fdd_flash=0,		// flash fdd image
 //	parameter	def_EXTEND_BIOS=0,		// extend BIOS MENU & NoICE-Z80 resource-free monitor
 	parameter	SIM_FAST=0,				// fast simulation
 	parameter	DEBUG=0,				// 
@@ -202,14 +204,14 @@ module nx1_de0ec8 #(
 //	assign SD_CLK=1'bz;
 //	assign SD_DAT3=1'bz;
 
-	assign FL_CE_N=1'b1;
-	assign FL_ADDR[21:0]=22'hzzzzzz;
-	assign FL_DQ[15:0]=16'hzzzz;
-	assign FL_OE_N=1'b1;
-	assign FL_WE_N=1'b1;
-	assign FL_RST_N=1'b0;
-	assign FL_BYTE_N=1'b1;
-	assign FL_WP_N=1'b0;
+//	assign FL_CE_N=1'b1;
+//	assign FL_ADDR[21:0]=22'hzzzzzz;
+//	assign FL_DQ[15:0]=16'hzzzz;
+//	assign FL_OE_N=1'b1;
+//	assign FL_WE_N=1'b1;
+//	assign FL_RST_N=1'b0;
+//	assign FL_BYTE_N=1'b1;
+//	assign FL_WP_N=1'b0;
 
 //	assign VGA_R[3:0]=4'hz;
 //	assign VGA_G[3:0]=4'hz;
@@ -495,51 +497,6 @@ syncgen #(
 	.ver_wpos (16'h0000),		// vertical window start
 	.hor_up   (16'h8000),		// horizontal resize
 	.ver_up   (16'h4000)		// vertical resize
-) syncgen (
-	.HSYNC_N(hsync_n),			// out   [SYNC] #hsync
-	.VSYNC_N(vsync_n),			// out   [SYNC] #vsync
-	.BLANK_N(blank_n),			// out   [SYNC] #blank
-
-	.EX_HDISP(EX_HDISP),		// out   [SYNC] horizontal disp
-	.EX_VDISP(EX_VDISP),		// out   [SYNC] vertical disp
-	.EX_HBP(EX_HBP),			// out   [SYNC] horizontal backporch
-	.EX_HWSAV(EX_HWSAV),		// out   [SYNC] horizontal window sav
-	.EX_HSAV(EX_HSAV),			// out   [SYNC] horizontal sav
-	.EX_HEAV(EX_HEAV),			// out   [SYNC] horizontal eav
-	.EX_HC(EX_HC),				// out   [SYNC] horizontal countup
-	.EX_VWSAV(EX_VWSAV),		// out   [SYNC] vertical window sav
-	.EX_VSAV(EX_VSAV),			// out   [SYNC] vertical sav
-	.EX_VEAV(EX_VEAV),			// out   [SYNC] vertical eav
-	.EX_VC(EX_VC),				// out   [SYNC] vertical countup
-
-	.RST_N(lock32M),			// in    [SYNC] #reset
-	.CLK(EX_CLK)				// in    [SYNC] dot clock
-);
-
-end
-endgenerate
-
-generate
-	if ((DEBUG==0) & (def_reso==3))	// 1920x1080
-begin
-
-	assign EX_CLK=clk128M;	// reso 1920x1080
-
-syncgen #(
-	.hor_total(16'd2080),		// horizontal total
-	.hor_addr (16'd1920),		// horizontal display
-	.hor_fp   (16'd48),			// horizontal front porch (+margin)
-	.hor_sync (16'd32),			// horizontal sync
-	.hor_bp   (16'd80),			// horizontal back porch (+margin)
-	.ver_total(16'd1111),		// vertical total
-	.ver_addr (16'd1080),		// vertical display
-	.ver_fp   (16'd3),			// vertical front porch (+margin)
-	.ver_sync (16'd5),			// vertical sync
-	.ver_bp   (16'd23),			// vertical back porch (+margin)
-	.hor_wpos (16'h0000),		// horizontal window start
-	.ver_wpos (16'h0000),		// vertical window start
-	.hor_up   (16'h4000),		// horizontal resize
-	.ver_up   (16'h2000)		// vertical resize
 ) syncgen (
 	.HSYNC_N(hsync_n),			// out   [SYNC] #hsync
 	.VSYNC_N(vsync_n),			// out   [SYNC] #vsync
@@ -978,6 +935,7 @@ nx1_mgarb #(
 	wire	sdr_cs;
 	wire	mem_cs;
 	wire	z_ioreq;
+	wire	[3:0] z_vplane;
 	wire	z_multiplane;
 
 	assign sdr_cs=(def_sram==0) & (mram_cs==1'b1) ? 1'b1 : 1'b0;
@@ -1027,7 +985,7 @@ nx1_zbank #(
 	.z_wr(~swr_n),
 	.z_mreq(sdr_cs),
 	.z_ioreq(z_ioreq),
-	.z_vplane({gr_g_cs,gr_r_cs,gr_b_cs,1'b0}),
+	.z_vplane(z_vplane[3:0]),//{gr_g_cs,gr_r_cs,gr_b_cs,1'b0}),
 	.z_multiplane(z_multiplane)
 /*
 	.z_ipl(z_ipl),				// out
@@ -1049,7 +1007,7 @@ generate
 	if (def_sram==1)
 begin
 
-alt_altsyncram_c3dp8x4k dpram8x4k(
+alt_altsyncram_c3dp8x16k dpram8x16k(
 	.data(cbus_wdata),
 	.rdaddress(sa[13:0]),
 	.rdclock(sys_clk),
@@ -1085,6 +1043,50 @@ alt_altsyncram_rom8x4k rom_ipl(
 
 	assign p4_cmd_clk=mem_clk;
 	assign p4_rd_clk=mem_clk;
+
+	wire	[19:0] faddr;
+	wire	frd;
+	wire	[15:0] frdata;
+
+generate
+	if (def_fdd_flash==1)
+begin
+
+	assign FL_ADDR[21:0]={3'b000,faddr[19:1]};
+	assign FL_DQ[15:0]=16'hzzzz;
+	assign frdata[15:0]=FL_DQ[15:0];
+	assign FL_CE_N=!frd;
+	assign FL_OE_N=!frd;
+	assign FL_WE_N=1'b1;
+	assign FL_RST_N=!sys_reset;
+	assign FL_BYTE_N=1'b1;
+	assign FL_WP_N=1'b0;
+
+end
+	else
+begin
+
+	// ---- fdd test ----
+
+	assign FL_ADDR[21:0]=22'b0;
+	assign FL_DQ[15:0]=16'hzzzz;
+	assign FL_CE_N=1'b1;
+	assign FL_OE_N=1'b1;
+	assign FL_WE_N=1'b1;
+	assign FL_RST_N=1'b0;
+	assign FL_BYTE_N=1'b1;
+	assign FL_WP_N=1'b0;
+
+	assign frdata[15:8]=frdata[7:0];
+
+alt_altsyncram_rom8x16k fdd(
+	.address(faddr[13:0]),
+	.clock(CLK32),
+	.q(frdata[7:0])
+);
+
+end
+endgenerate
 
 nx1_top #(
 	.def_DEVICE(def_DEVICE),			// 0=Xilinx , 1=Altera
@@ -1162,7 +1164,12 @@ nx1_top #(
 */
 
 	.z_ioreq(z_ioreq),				// out
+	.z_vplane(z_vplane[3:0]),		// out
 	.z_multiplane(z_multiplane),	// out
+
+	.faddr(faddr[19:0]),			// out   [FDD] flash addr
+	.frd(frd),						// out   [FDD] flash oe
+	.frdata(frdata[15:0]),			// in    [FDD] flash read data
 
 	.I_RESET(sys_reset),
 	.I_CLK32M(sys_clk),
