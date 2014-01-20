@@ -303,6 +303,8 @@ module n8877 #(
 	assign fdc_cmd_w[7:0]=(fdc_state_r==fdst10) & (req==1'b1) & (wr==1'b1) & (addr[2:0]==3'b000) ? wdata[7:0] : fdc_cmd_r[7:0];
 	assign fdc_track_w[7:0]=
 			(fdc_state_r==fdst10) & (req==1'b1) & (wr==1'b1) & (addr[2:0]==3'b000) & (wdata[7:4]==4'b0000) ? 8'b0 :	// cmd1-0 : seek00
+			(fdc_state_r==fdst10) & (req==1'b1) & (wr==1'b1) & (addr[2:0]==3'b000) & (wdata[7:4]==4'b0001) ? fdc_data_r[7:0] :	// cmd1-1 : seek
+			(fdc_state_r==fdst10) & (req==1'b1) & (wr==1'b1) & (addr[2:0]==3'b000) & (wdata[7:5]==3'b001 ) ? fdc_data_r[7:0] :	// cmd1-2 : seek
 			(fdc_state_r==fdst10) & (req==1'b1) & (wr==1'b1) & (addr[2:0]==3'b000) & (wdata[7:5]==3'b010 ) ? fdc_track_r[7:0]-8'b01 :	// cmd1-4 : seek-1
 			(fdc_state_r==fdst10) & (req==1'b1) & (wr==1'b1) & (addr[2:0]==3'b000) & (wdata[7:5]==3'b011 ) ? fdc_track_r[7:0]+8'b01 :	// cmd1-6 : seek+1
 			(fdc_state_r==fdst10) & (req==1'b1) & (wr==1'b1) & (addr[2:0]==3'b001) ? wdata[7:0] :

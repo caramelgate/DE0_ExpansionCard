@@ -352,6 +352,11 @@ fz80c Z80(
   .busak_n()
 );
 
+	wire	[19:0] faddr;
+	wire	frd;
+	tri1	[15:0] frdata;
+
+	reg		[19:0] faddr_r;
 	reg		rd_r;
 	reg		[7:0] rdata_r;
 	reg		wr_r;
@@ -361,6 +366,7 @@ fz80c Z80(
 	begin
 		if (RST_N==1'b0)
 			begin
+				faddr_r[19:0] <= 20'b0;
 				rd_r <= 1'b0;
 				rdata_r[7:0] <= 8'b0;
 				wr_r <= 1'b0;
@@ -368,12 +374,21 @@ fz80c Z80(
 			end
 		else
 			begin
+				faddr_r[19:0] <= faddr[19:0];
 				rd_r <= !RD_N;
 				rdata_r[7:0] <= RDATA[7:0];
 				wr_r <= !WR_N;
 				wdata_r[7:0] <= WDATA[7:0];
 			end
 	end
+
+	wire	dbg_msg_io;
+	wire	dbg_msg_fdc;
+	wire	dbg_msg_text;
+
+	assign dbg_msg_io=1'b0;
+	assign dbg_msg_fdc=1'b0;
+	assign dbg_msg_text=1'b1;
 
 	always @(posedge MREQ_N or negedge RST_N)
 	begin
@@ -382,8 +397,8 @@ fz80c Z80(
 			end
 		else
 			begin
-			//	if ((RFSH_N==1'b1) & (rd_r==1'b1)) $display("MEM RD %4H %2H",ADDR,rdata_r);
-			//	if ((RFSH_N==1'b1) & (wr_r==1'b1)) $display("MEM WR %4H %2H",ADDR,wdata_r);
+				if ((dbg_msg_io==1'b1) & (RFSH_N==1'b1) & (rd_r==1'b1)) $display("MEM RD %4H %2H",ADDR,rdata_r);
+				if ((dbg_msg_io==1'b1) & (RFSH_N==1'b1) & (wr_r==1'b1)) $display("MEM WR %4H %2H",ADDR,wdata_r);
 			end
 	end
 
@@ -396,15 +411,32 @@ fz80c Z80(
 			begin
 			//	if (rd_r==1'b1) $display("IO RD %4H %2H",ADDR,rdata_r);
 			//	if (wr_r==1'b1) $display("IO WR %4H %2H",ADDR,wdata_r);
-				if ((rd_r==1'b1) & (ADDR[15:0]==16'h0ff8)) $display("FDC STAT RD %4H %2H",ADDR,rdata_r);
-				if ((rd_r==1'b1) & (ADDR[15:0]==16'h0ff9)) $display("FDC TRAC RD %4H %2H",ADDR,rdata_r);
-				if ((rd_r==1'b1) & (ADDR[15:0]==16'h0ffa)) $display("FDC SECT RD %4H %2H",ADDR,rdata_r);
-				if ((rd_r==1'b1) & (ADDR[15:0]==16'h0ffb)) $display("FDC DATA RD %4H %2H %6H",ADDR,rdata_r,faddr);
-				if ((wr_r==1'b1) & (ADDR[15:0]==16'h0ff8)) $display("FDC CMD  WR %4H %2H",ADDR,wdata_r);
-				if ((wr_r==1'b1) & (ADDR[15:0]==16'h0ff9)) $display("FDC TRAC WR %4H %2H",ADDR,wdata_r);
-				if ((wr_r==1'b1) & (ADDR[15:0]==16'h0ffa)) $display("FDC SECT WR %4H %2H",ADDR,wdata_r);
-				if ((wr_r==1'b1) & (ADDR[15:0]==16'h0ffb)) $display("FDC DATA WR %4H %2H",ADDR,wdata_r);
-			//	if ((rd_r==1'b1) & (ADDR[15:0]==16'h0ffb) & (faddr[19:8]!=12'h000)) $stop;
+				if ((dbg_msg_fdc==1'b1) & (rd_r==1'b1) & (ADDR[15:0]==16'h0ff8)) $display("FDC STAT RD %4H %2H",ADDR,rdata_r);
+				if ((dbg_msg_fdc==1'b1) & (rd_r==1'b1) & (ADDR[15:0]==16'h0ff9)) $display("FDC TRAC RD %4H %2H",ADDR,rdata_r);
+				if ((dbg_msg_fdc==1'b1) & (rd_r==1'b1) & (ADDR[15:0]==16'h0ffa)) $display("FDC SECT RD %4H %2H",ADDR,rdata_r);
+				if ((dbg_msg_fdc==1'b1) & (rd_r==1'b1) & (ADDR[15:0]==16'h0ffb)) $display("FDC DATA RD %4H %2H %6H",ADDR,rdata_r,faddr_r);
+				if ((dbg_msg_fdc==1'b1) & (wr_r==1'b1) & (ADDR[15:0]==16'h0ff8)) $display("FDC CMD  WR %4H %2H",ADDR,wdata_r);
+				if ((dbg_msg_fdc==1'b1) & (wr_r==1'b1) & (ADDR[15:0]==16'h0ff9)) $display("FDC TRAC WR %4H %2H",ADDR,wdata_r);
+				if ((dbg_msg_fdc==1'b1) & (wr_r==1'b1) & (ADDR[15:0]==16'h0ffa)) $display("FDC SECT WR %4H %2H",ADDR,wdata_r);
+				if ((dbg_msg_fdc==1'b1) & (wr_r==1'b1) & (ADDR[15:0]==16'h0ffb)) $display("FDC DATA WR %4H %2H",ADDR,wdata_r);
+			//	if ((rd_r==1'b1) & (ADDR[15:0]==16'h0ffb) & (faddr_r[19:8]!=12'h000)) $stop;
+			end
+	end
+
+	always @(posedge IORQ_N or negedge RST_N)
+	begin
+		if (RST_N==1'b0)
+			begin
+			end
+		else
+			begin
+				if ((dbg_msg_text==1'b1) & (wr_r==1'b1) & (ADDR[15:12]==4'h3) & (wdata_r[7:0]>8'h1f)) $display("%2h",wdata_r);
+				if ((dbg_msg_text==1'b1) & (wr_r==1'b1) & (ADDR[15:0]==16'h0ff8)) $display("FDC CMD  WR %4H %2H",ADDR,wdata_r);
+				if ((dbg_msg_text==1'b1) & (wr_r==1'b1) & (ADDR[15:0]==16'h0ff9)) $display("FDC TRAC WR %4H %2H",ADDR,wdata_r);
+				if ((dbg_msg_text==1'b1) & (wr_r==1'b1) & (ADDR[15:0]==16'h0ffa)) $display("FDC SECT WR %4H %2H",ADDR,wdata_r);
+				if ((dbg_msg_text==1'b1) & (wr_r==1'b1) & (ADDR[15:0]==16'h0ffb)) $display("FDC DATA WR %4H %2H",ADDR,wdata_r);
+				if ((rd_r==1'b1) & (ADDR[15:8]==8'h1e)) $stop;
+				if ((wr_r==1'b1) & (ADDR[15:8]==8'h1e)) $stop;
 			end
 	end
 
@@ -455,10 +487,6 @@ alt_altsyncram_rom8x4k rom_ipl(
 	.clock(!CLK32),
 	.q(rom_ipl_rdata[7:0])
 );
-
-	wire	[19:0] faddr;
-	wire	frd;
-	tri1	[15:0] frdata;
 
 
 n8877 #(
