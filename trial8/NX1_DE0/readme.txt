@@ -144,6 +144,10 @@ FDC MB8877を追加。起動テスト用のFDイメージに筑紫版X1用S-OS SWORDを使用。
 
 FDCのシミュレーションを更新。
 
+状況 2014/JAN/21
+
+なんか起動。GRAMはまだ不能な状態なのでIPLの該当箇所を外す。
+
 
 長嶋(T.NG) caramelgate@gmail.com
 

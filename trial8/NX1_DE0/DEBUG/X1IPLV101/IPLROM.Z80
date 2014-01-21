@@ -21,11 +21,11 @@ ERR_RET		equ		0ff8ah
 
 main:			ld		sp, 0
 				call	init
-				call	txtram_clear
-				ld		de, welcome_msg
-				call	txt_print
-				call	vram_clear
-				ld		de, finding_msg
+;;				call	txtram_clear	; <-- debug : skip
+				ld		de, welcome_msg	; <-- 
+				call	txt_print		; <--
+;;				call	vram_clear		; <--
+				ld		de, finding_msg	; <--
 				call	txt_print
 				call	isdriveready
 				jr		c, fdcnotready

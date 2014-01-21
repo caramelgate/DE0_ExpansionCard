@@ -83,13 +83,18 @@ module nx1_top #(
 	input			vram_rd_overflow,	// in    [VRAM] rd over
 	input			vram_rd_error,		// in    [VRAM] rd err
 
-	output			z_ioreq,			// out   [CPU] vram select
+	output	[15:0]	z_addr,				// out   [CPU] addr
+	output	[7:0]	z_dbg_rdata,		// out   [CPU] debug : read data
+	output			z_mreq,				// out   [CPU] #mreq
+	output			z_ioreq,			// out   [CPU] #ioreq
+	output			z_wr,				// out   [CPU] #wr
+	output			z_rd,				// out   [CPU] #rd
 	output	[3:0]	z_vplane,			// out   [CPU] vram plane select
 	output			z_multiplane,		// out   [CPU] vram multiplane write
 
 	output	[19:0]	faddr,				// out   [FDD] flash addr
 	output			frd,				// out   [FDD] flash oe
-	output	[15:0]	frdata,				// in    [FDD] flash read data
+	input	[15:0]	frdata,				// in    [FDD] flash read data
 
 	input			I_RESET,			// in    [sys] reset
 	input			I_CLK32M,			// in    [sys] clk 32MHz(33MHz)
@@ -344,7 +349,7 @@ wire [7:0] H_DR;
 //	assign debug_mode=1'b0;
 //	assign ice_bank[3:0]=4'b0;
 	assign O_USART_TX=1'b0;
-	assign ZMREQ_n=H_MREQ_n;
+	assign ZMREQ_n=(H_MREQ_n==1'b0) & (ZRFSH_n==1'b1) ? 1'b0 : 1'b1;
 	assign H_NMI_n=ZNMI_n;
 	assign H_INT_n=ZINT_n;
 	assign H_DR=ZDI;
@@ -362,11 +367,11 @@ fz80c Z80(
   .A(ZA), .do(ZDO),
   .m1_n(ZM1_n), .iorq_n(ZIORQ_n), 
   .rd_n(ZRD_n), .wr_n(ZWR_n),
-  .wait_n(ZWAIT_n), .rfsh_n(),.halt_n(ZHALT_n),
+  .wait_n(ZWAIT_n), .rfsh_n(ZRFSH_n),.halt_n(ZHALT_n),
   .busrq_n(ZBUSRQ_n),.busak_n(ZBUSAK_n)
 );
 
-	assign ZRFSH_n=1'b1;
+//	assign ZRFSH_n=1'b1;
 
 	wire	zcke;
 	wire	zckn;
@@ -630,7 +635,7 @@ assign sdi    =
 n8877 #(
 	.def_wp(4'b1111),
 	.busfree(busfree)
-) (
+) fdc8877 (
 	.faddr(faddr[19:0]),			// out   [MEM] addr
 	.frd(frd),						// out   [MEM] rd req
 	.frdata(frdata[15:0]),			// in    [MEM] read data
@@ -646,7 +651,7 @@ n8877 #(
 	.wait_n(fd5_wait_n),
 
 	.rst_n(!sys_reset),
-	.clk(clk32M)
+	.clk(ZCLK)//clk32M)
 );
 
 
@@ -773,7 +778,8 @@ wire cmt_read = 1'b0;
 	assign pia_b[7:0]=(def_X1TURBO==0) ? {vblank_n,sub_tx_bsy,sub_rx_bsy,1'b1,lpt_rdy,vsync,cmt_read,key_brk_n} : {vblank_n,sub_tx_bsy,sub_rx_bsy,ipl_sel,lpt_rdy,vsync,cmt_read,key_brk_n};
 
 wire lpt_stb   = pia_c[7];
-wire width40   = (DEBUG==1) ? 1'b1 : pia_c[6];	// <-- disp width debug
+//wire width40   = (DEBUG==1) ? 1'b1 : pia_c[6];	// <-- disp width debug
+wire width40   = pia_c[6];
 wire dam_en_n  = pia_c[5]; // DOUJI ACCESS fall trigger
 wire sm_scrl_n = pia_c[4]; // smooth scroll (L)
 
@@ -921,13 +927,33 @@ wire [7:0] vid_dr;
 
 wire vwait;
 
+	wire	dbg_text_cs;
+	wire	[15:0] dbg_addr;
+
 	wire	[7:0] red;
 	wire	[7:0] green;
 	wire	[7:0] blue;
 
+	assign z_addr[15:0]=sa[15:0];
+	assign z_dbg_rdata[7:0]=H_DR[7:0];
+	assign z_mreq=!smreq_n;
 	assign z_ioreq=!sireq_n;
+	assign z_wr=!swr_n;
+	assign z_rd=!srd_n;
 	assign z_vplane={gr_g_cs,gr_r_cs,gr_b_cs,1'b0};
 	assign z_multiplane=dam;
+
+	assign dbg_addr[15:0]=sa[15:0];
+		//	(DEBUG==0) ? sa[15:0] :
+		//	(DEBUG==1) & (text_cs==1'b1) ? sa[15:0] :
+		//	(DEBUG==1) & (text_cs==1'b0) ? {8'b0,sa[7:0]} :
+		//	16'b0;
+
+	assign dbg_text_cs=text_cs;
+		//	(DEBUG==0) & (text_cs==1'b1) ? 1'b1 :
+		//	(DEBUG==1) & (text_cs==1'b1) ? 1'b1 :
+		//	(DEBUG==1) & (text_cs==1'b0) & (z_mreq==1'b1) & (z_wr==1'b1) & (z_addr[15:8]==8'hfe) ? 1'b1 :
+		//	1'b0;
 
 nx1_vid #(
 	.busfree(busfree),				// idle busdata
@@ -969,7 +995,7 @@ nx1_vid #(
 	.I_RESET(sys_reset),
 	.I_CCLK(clk32M),//ZCLK),
 	.I_CCKE(zcke),//ZCLK),
-  .I_A(sa),
+  .I_A(dbg_addr),
   .I_D(sdo),
   .O_D(vid_dr),
   .O_DE(vid_re),
@@ -980,7 +1006,7 @@ nx1_vid #(
   .I_CRTC_CS(crtc_cs),
   .I_CG_CS(cg_cs),
   .I_PAL_CS(pal_cs),
-  .I_TXT_CS(text_cs), .I_ATT_CS(attr_cs), .I_KAN_CS(ktext_cs),
+  .I_TXT_CS(dbg_text_cs), .I_ATT_CS(attr_cs), .I_KAN_CS(ktext_cs),
   .I_GRB_CS(gr_b_cs), .I_GRR_CS(gr_r_cs), .I_GRG_CS(gr_g_cs),
   .I_VCLK(EX_CLK),  .I_CLK1(clk1),
   .I_W40(width40),
@@ -1094,47 +1120,21 @@ assign sio_rd = (def_X1TURBO==0) ? 8'b0 : 8'h00;
 assign dma_rd = 8'h00;
 //`endif
 
-/****************************************************************************
-  ATTR / TEXT / KANJI VRAM
-****************************************************************************/
 
-///****************************************************************************
-//  CG ROM
-//****************************************************************************/
+	assign O_CBUS_BANK    = sbank;
+	assign O_CBUS_ADDRESS = sa;
+	assign O_CBUS_DATA    = sdo;
+	assign sram_dr     = I_CBUS_DATA;
+	assign O_CBUS_RD_n = srd_n;
+	assign O_CBUS_WR_n = swr_n;
+	assign O_CBUS_CS_IPL = ipl_cs;
+	assign O_CBUS_CS_MRAM = ram_cs;// & ~firm_cs; // block SUB-CPU FIRM CS
+	assign O_CBUS_CS_GRAMB = gr_b_cs;
+	assign O_CBUS_CS_GRAMR = gr_r_cs;
+	assign O_CBUS_CS_GRAMG = gr_g_cs;
 
-/****************************************************************************
-  PCG RAM
-****************************************************************************/
-
-/****************************************************************************
-  video converter
-****************************************************************************/
-
-///****************************************************************************
-//  NTSC video converter
-//****************************************************************************/
-
-/****************************************************************************
-  external SRAM
-****************************************************************************/
-
-// External CPU Bus (Main RAM)
-assign O_CBUS_BANK    = sbank;
-assign O_CBUS_ADDRESS = sa;
-assign O_CBUS_DATA    = sdo;
-assign sram_dr     = I_CBUS_DATA;
-assign O_CBUS_RD_n = srd_n;
-assign O_CBUS_WR_n = swr_n;
-assign O_CBUS_CS_IPL = ipl_cs;
-assign O_CBUS_CS_MRAM = ram_cs;// & ~firm_cs; // block SUB-CPU FIRM CS
-assign O_CBUS_CS_GRAMB = gr_b_cs;
-assign O_CBUS_CS_GRAMR = gr_r_cs;
-assign O_CBUS_CS_GRAMG = gr_g_cs;
-
-//`ifdef X1TURBO
-assign O_CBUS_BANK_GRAM_R = (def_X1TURBO==0) ? 1'b0 : gram_rp;
-assign O_CBUS_BANK_GRAM_W = (def_X1TURBO==0) ? 1'b0 : gram_wp;
-//`endif
+	assign O_CBUS_BANK_GRAM_R=gram_rp;
+	assign O_CBUS_BANK_GRAM_W=gram_wp;
 
 /****************************************************************************
   SPI I/F

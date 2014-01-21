@@ -40,7 +40,7 @@
 
 ****************************************************************************/
 
-`define FAST_SQUE  /* 8dot left sque,save some circuit */
+//`define FAST_SQUE  /* 8dot left sque,save some circuit */
 
 module nx1_vid #(
 	parameter	busfree=8'h0,
@@ -176,7 +176,7 @@ module nx1_vid #(
 	assign I_PCGG_D=pcgg_vdata;
 
 	assign I_TXT_D=text_vdata;
-	assign I_ATT_D=attr_vdata;
+	assign I_ATT_D=(DEBUG==0) ? attr_vdata : 8'h07;
 	assign I_KAN_D=ktext_vdata;
 
 	assign cg_wr=I_CG_CS & I_WR & defchr_enable;
@@ -682,12 +682,12 @@ assign O_VA  = {crtc_ra[2:0],vram_a};
 reg [7:0] txt_d;
 reg [7:0] cgb_d , cgr_d , cgg_d;
 reg [7:0] grb_d , grr_d , grg_d;
-`ifdef FAST_SQUE
+//`ifdef FAST_SQUE
 wire [7:0] att_d = I_ATT_D; // attr bypass
-`else
-reg [7:0] att_d;
-reg [7:0] grb_r , grr_r , grg_r;
-`endif
+//`else
+//reg [7:0] att_d;
+//reg [7:0] grb_r , grr_r , grg_r;
+//`endif
 
 // attribute bit assign
 reg att_h2x;
@@ -726,7 +726,7 @@ begin
 
     if(~QD)
     begin
-`ifdef FAST_SQUE
+//`ifdef FAST_SQUE
       if( QC & ~QB) // delay 2 ealy latch
       begin
         txt_d <= I_TXT_D;
@@ -742,25 +742,24 @@ begin
           cg_line <= crtc_ra[2:0];     // x1 CRTC through
         end
       end
-`endif
+//`endif
       if(~QC & ~QB) // delay 4
       begin
-`ifndef FAST_SQUE
-        // 1 char delayed latch
-        txt_d <= I_TXT_D;
-        att_d <= I_ATT_D;
-
-        // CG V pos
-        old_ra0 <= crtc_ra[0];
-        if( (att_d[6] | ~crtc_disptmg) & vdisp )
-        begin
-          // V2X
-          if(old_ra0 & ~crtc_ra[0])
-            cg_line <= cg_line + 1;        // x2 increment CRTC 2V
-        end else begin
-          cg_line <= crtc_ra[2:0];     // x1 CRTC through
-        end
-`endif
+//`ifndef FAST_SQUE
+//        // 1 char delayed latch
+//        txt_d <= I_TXT_D;
+//        att_d <= I_ATT_D;
+//        // CG V pos
+//        old_ra0 <= crtc_ra[0];
+//        if( (att_d[6] | ~crtc_disptmg) & vdisp )
+//        begin
+//          // V2X
+//          if(old_ra0 & ~crtc_ra[0])
+//            cg_line <= cg_line + 1;        // x2 increment CRTC 2V
+//        end else begin
+//          cg_line <= crtc_ra[2:0];     // x1 CRTC through
+//        end
+//`endif
         // CG load
         if(~att_h2x || ~crtc_ma[0])
         begin
@@ -770,11 +769,11 @@ begin
         end
         // ATT load
         att_h2x   <=  att_d[7];
-`ifdef FAST_SQUE
+//`ifdef FAST_SQUE
 //        att_v2x   <=  att_d[6];
-`else
+//`else
 //        att_v2x   <= (att_d[6] | ~crtc_disptmg) & vdisp;
-`endif
+//`endif
         att_pcg   <=  att_d[5];
         att_blink <=  att_d[4];
         att_rev   <=  att_d[3];
@@ -783,24 +782,24 @@ begin
         att_b     <=  att_d[0];
 
         // GRAM load
-`ifdef FAST_SQUE
+//`ifdef FAST_SQUE
         grb_d <= I_GRB_D;
         grr_d <= I_GRR_D;
         grg_d <= I_GRG_D;
         // syncs
         hsync_d  <= crtc_hsync;
         vsync_d  <= crtc_vsync;
-`else
-        grb_r <= I_GRB_D;
-        grr_r <= I_GRR_D;
-        grg_r <= I_GRG_D;
-        grb_d <= grb_r;
-        grr_d <= grr_r;
-        grg_d <= grg_r;
-        // syncs
-        hsync_d  <= crtc_hsync;
-        vsync_d  <= crtc_vsync;
-`endif
+//`else
+//        grb_r <= I_GRB_D;
+//        grr_r <= I_GRR_D;
+//        grg_r <= I_GRG_D;
+//        grb_d <= grb_r;
+//        grr_d <= grr_r;
+//        grg_d <= grg_r;
+//        // syncs
+//        hsync_d  <= crtc_hsync;
+//        vsync_d  <= crtc_vsync;
+//`endif
         disp_d   <= crtc_disptmg;
       end
     end
@@ -931,13 +930,13 @@ end
 assign O_YM = ym_r;
 //`endif
 
-`ifdef FAST_SQUE
+//`ifdef FAST_SQUE
 assign O_HSYNC = crtc_hsync;
 assign O_VSYNC = crtc_vsync;
-`else
-assign O_HSYNC = hsync_d;
-assign O_VSYNC = vsync_d;
-`endif
+//`else
+//assign O_HSYNC = hsync_d;
+//assign O_VSYNC = vsync_d;
+//`endif
 assign O_VDISP = vdisp;
 
 /****************************************************************************

@@ -20,7 +20,7 @@ module nx1_de0ec8 #(
 	parameter	def_fdd_flash=0,		// flash fdd image
 //	parameter	def_EXTEND_BIOS=0,		// extend BIOS MENU & NoICE-Z80 resource-free monitor
 	parameter	SIM_FAST=0,				// fast simulation
-	parameter	DEBUG=0,				// 
+	parameter	DEBUG=1,				// 
 	parameter	def_MBASE=32'h00000000,	// main memory base address
 	parameter	def_BBASE=32'h00100000,	// bank memory base address
 	parameter	def_VBASE=32'h00180000	// video base address
@@ -387,7 +387,7 @@ endgenerate
 //	assign EX_CLK=clk25M;	// reso 640x480
 
 generate
-	if ((DEBUG==0) & ((def_reso==0) | ((def_reso!=1) & (def_reso!=2) & (def_reso!=3))))	// 800x480
+	if ((SIM_FAST==0) & ((def_reso==0) | ((def_reso!=1) & (def_reso!=2))))	// 800x480
 begin
 
 	assign EX_CLK=clk32M;	// reso 800x480
@@ -432,7 +432,7 @@ end
 endgenerate
 
 generate
-	if ((DEBUG==0) & (def_reso==1))	// 1024x600
+	if ((SIM_FAST==0) & (def_reso==1))	// 1024x600
 begin
 
 	assign EX_CLK=clk64M;	// reso 1024x600 / 1024x768
@@ -477,7 +477,7 @@ end
 endgenerate
 
 generate
-	if ((DEBUG==0) & (def_reso==2))	// 1024x768
+	if ((SIM_FAST==0) & (def_reso==2))	// 1024x768
 begin
 
 	assign EX_CLK=clk64M;	// reso 1024x600 / 1024x768
@@ -522,7 +522,7 @@ end
 endgenerate
 
 generate
-	if (DEBUG==1)	// 800x600
+	if (SIM_FAST==1)	// 800x600
 begin
 
 	assign EX_CLK=clk32M;	// reso 800x480
@@ -559,8 +559,8 @@ syncgen #(
 	.EX_VEAV(EX_VEAV),			// out   [SYNC] vertical eav
 	.EX_VC(EX_VC),				// out   [SYNC] vertical countup
 
-	.RST_N(lock32M),			// in    [SYNC] #reset
-	.CLK(EX_CLK)				// in    [SYNC] dot clock
+	.RST_N(1'b0),			// in    [SYNC] #reset
+	.CLK(1'b0)				// in    [SYNC] dot clock
 );
 
 end
@@ -569,24 +569,22 @@ endgenerate
 	assign clk_reset=ext_reset | ~lock32M;
 	assign sys_reset=clk_reset;
 
-	reg		[3:0] uart_pris;
-	wire	uart_clk;
-	wire	uart_clk_e;
-
-	assign uart_clk=clk24M;
-	assign uart_clk_e=(uart_pris==4'd12) ? 1'b1 : 1'b0;
-
-	always @(posedge uart_clk or posedge clk_reset)
-	begin
-		if (clk_reset==1'b1)
-			begin
-				uart_pris <= 4'b0;
-			end
-		else
-			begin
-				uart_pris <= (uart_pris==12) ? 3'b0 : uart_pris + 4'b01;
-			end
-	end
+//	reg		[3:0] uart_pris;
+//	wire	uart_clk;
+//	wire	uart_clk_e;
+//	assign uart_clk=clk24M;
+//	assign uart_clk_e=(uart_pris==4'd12) ? 1'b1 : 1'b0;
+//	always @(posedge uart_clk or posedge clk_reset)
+//	begin
+//		if (clk_reset==1'b1)
+//			begin
+//				uart_pris <= 4'b0;
+//			end
+//		else
+//			begin
+//				uart_pris <= (uart_pris==12) ? 3'b0 : uart_pris + 4'b01;
+//			end
+//	end
 
 	wire	[15:0] pcm_l;
 	wire	[15:0] pcm_r;
@@ -934,7 +932,12 @@ nx1_mgarb #(
 	wire	wait_n;
 	wire	sdr_cs;
 	wire	mem_cs;
+	wire	[15:0] z_addr;
+	wire	[7:0] z_dbg_rdata;
+	wire	z_mreq;
 	wire	z_ioreq;
+	wire	z_wr;
+	wire	z_rd;
 	wire	[3:0] z_vplane;
 	wire	z_multiplane;
 
@@ -1081,9 +1084,86 @@ begin
 
 alt_altsyncram_rom8x16k fdd(
 	.address(faddr[13:0]),
-	.clock(CLK32),
+	.clock(sys_clk),
 	.q(frdata[7:0])
 );
+
+/*
+	assign {frdata[7:0],frdata[15:8]}=
+			(faddr[8:1]==8'h00) ? 16'h0120 :	// 01," "
+			(faddr[8:1]==8'h01) ? 16'h2122 :	// "  "
+			(faddr[8:1]==8'h02) ? 16'h2324 :	// "  "
+			(faddr[8:1]==8'h03) ? 16'h2526 :	// "  "
+			(faddr[8:1]==8'h04) ? 16'h2728 :	// "  "
+			(faddr[8:1]==8'h05) ? 16'h292a :	// "  "
+			(faddr[8:1]==8'h06) ? 16'h2b2c :	// "  "
+			(faddr[8:1]==8'h07) ? 16'h5379 :	// "Sy"
+			(faddr[8:1]==8'h08) ? 16'h7320 :	// "s",20
+			(faddr[8:1]==8'h09) ? 16'h00_02 :	// size 0200
+			(faddr[8:1]==8'h0a) ? 16'h00_80 :	// load 8000
+			(faddr[8:1]==8'h0b) ? 16'h00_81 :	// exec 8100
+			(faddr[8:1]==8'h0c) ? 16'h23_01 :	// 
+			(faddr[8:1]==8'h0d) ? 16'h67_45 :	// 
+			(faddr[8:1]==8'h0e) ? 16'hab_89 :	// 
+			(faddr[8:1]==8'h0f) ? 16'h10_00 :	// sect 0010
+			16'he5e5;
+*/
+
+	reg		rd_r;
+	reg		[7:0] rdata_r;
+	reg		wr_r;
+	reg		[7:0] wdata_r;
+
+	always @(posedge sys_clk or posedge sys_reset)
+	begin
+		if (sys_reset==1'b1)
+			begin
+				rd_r <= 1'b0;
+				rdata_r[7:0] <= 8'b0;
+				wr_r <= 1'b0;
+				wdata_r[7:0] <= 8'b0;
+			end
+		else
+			begin
+				rd_r <= !srd_n;
+				rdata_r[7:0] <= z_dbg_rdata[7:0];
+				wr_r <= !swr_n;
+				wdata_r[7:0] <= cbus_wdata[7:0];
+			end
+	end
+
+	always @(negedge z_mreq or posedge sys_reset)
+	begin
+		if (sys_reset==1'b1)
+			begin
+			end
+		else
+			begin
+			//	if ((RFSH_N==1'b1) & (rd_r==1'b1)) $display("MEM RD %4H %2H",z_addr,rdata_r);
+			//	if ((RFSH_N==1'b1) & (wr_r==1'b1)) $display("MEM WR %4H %2H",z_addr,wdata_r);
+			end
+	end
+
+	always @(negedge z_ioreq or posedge sys_reset)
+	begin
+		if (sys_reset==1'b1)
+			begin
+			end
+		else
+			begin
+			//	if (rd_r==1'b1) $display("IO RD %4H %2H",z_addr,rdata_r);
+			//	if (wr_r==1'b1) $display("IO WR %4H %2H",z_addr,wdata_r);
+				if ((rd_r==1'b1) & (z_addr[15:0]==16'h0ff8)) $display("FDC STAT RD %4H %2H",z_addr,rdata_r);
+				if ((rd_r==1'b1) & (z_addr[15:0]==16'h0ff9)) $display("FDC TRAC RD %4H %2H",z_addr,rdata_r);
+				if ((rd_r==1'b1) & (z_addr[15:0]==16'h0ffa)) $display("FDC SECT RD %4H %2H",z_addr,rdata_r);
+				if ((rd_r==1'b1) & (z_addr[15:0]==16'h0ffb)) $display("FDC DATA RD %4H %2H %6H",z_addr,rdata_r,faddr);
+				if ((wr_r==1'b1) & (z_addr[15:0]==16'h0ff8)) $display("FDC CMD  WR %4H %2H",z_addr,wdata_r);
+				if ((wr_r==1'b1) & (z_addr[15:0]==16'h0ff9)) $display("FDC TRAC WR %4H %2H",z_addr,wdata_r);
+				if ((wr_r==1'b1) & (z_addr[15:0]==16'h0ffa)) $display("FDC SECT WR %4H %2H",z_addr,wdata_r);
+				if ((wr_r==1'b1) & (z_addr[15:0]==16'h0ffb)) $display("FDC DATA WR %4H %2H",z_addr,wdata_r);
+			//	if ((rd_r==1'b1) & (z_addr[15:0]==16'h0ffb) & (faddr[19:8]!=12'h000)) $stop;
+			end
+	end
 
 end
 endgenerate
@@ -1149,21 +1229,16 @@ nx1_top #(
 	.vram_rd_count(p4_rd_count[6:0]),				// in    [VRAM] rd count[6:0]
 	.vram_rd_overflow(p4_rd_overflow),				// in    [VRAM] rd over
 	.vram_rd_error(p4_rd_error),					// in    [VRAM] rd err
-/*
-	.z_ipl(z_ipl),				// out
-	.z_addr(z_addr[15:0]),		// out
-	.z_czbank(z_czbank[5:0]),	// out
-	.z_mreq(z_mreq),			// out
-	.z_rd(z_rd),				// out
-	.z_wr(z_wr),				// out
-	.z_wait(z_wait),			// in
-	.z_fastcyc(z_fastcyc),		// in
-	.z_vplane(z_vplane[3:0]),	// out
-	.z_czvbank(z_czvbznk[3:0]),	// out
-	.z_czvbank(z_czvbznk[3:0]),	// out
-*/
 
+//	.z_wait(z_wait),			// in
+//	.z_fastcyc(z_fastcyc),		// in
+
+	.z_addr(z_addr[15:0]),			// out
+	.z_dbg_rdata(z_dbg_rdata[7:0]),			// out
+	.z_mreq(z_mreq),				// out
 	.z_ioreq(z_ioreq),				// out
+	.z_wr(z_wr),					// out
+	.z_rd(z_rd),					// out
 	.z_vplane(z_vplane[3:0]),		// out
 	.z_multiplane(z_multiplane),	// out
 
@@ -1229,8 +1304,8 @@ nx1_top #(
 	.O_DBG_NUM4(),
 	.O_DBG_DOT4(),
 	.O_DBG_LED8(),
-	.I_USART_CLK(uart_clk),
-	.I_USART_CLKEN16(uart_clk_e),
+	.I_USART_CLK(1'b0),//uart_clk),
+	.I_USART_CLKEN16(1'b0),//uart_clk_e),
 	.I_USART_RX(uart_rx),
 	.O_USART_TX(uart_tx)
 );
