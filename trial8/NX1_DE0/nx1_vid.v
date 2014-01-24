@@ -578,8 +578,8 @@ endgenerate
 			(vram_cmd_state_r==vcst10) & (vram_heav_req_r[3]==1'b0) & (vram_hdisp_r[3]==1'b0) ? vcst10 :
 			(vram_cmd_state_r==vcst10) & (vram_heav_req_r[3]==1'b0) & (vram_hdisp_r[3]==1'b1) ? vcst11 :	// display request
 
-			(vram_cmd_state_r==vcst11) & (vram_rd_count_r[6:4]!=3'b111) ? vcst02 :	// read next
-			(vram_cmd_state_r==vcst11) & (vram_rd_count_r[6:4]==3'b111) ? vcst12 :	// 7x4burst done
+			(vram_cmd_state_r==vcst11) & (vram_rd_count_r[6:4]!=3'b110) ? vcst02 :	// read next
+			(vram_cmd_state_r==vcst11) & (vram_rd_count_r[6:4]==3'b110) ? vcst12 :	// 6x4burst(80+16) done
 
 			(vram_cmd_state_r==vcst12) & (vram_hdisp_r[3]==1'b1) ? vcst01 :	// idle
 			(vram_cmd_state_r==vcst12) & (vram_hdisp_r[3]==1'b0) ? vcst12 :
@@ -848,17 +848,17 @@ always @(posedge I_CCLK or posedge I_RESET)
 begin
   if(I_RESET)
   begin
-    PAL_B  <= 8'h00;
-    PAL_R  <= 8'h00;
-    PAL_G  <= 8'h00;
+    PAL_B  <= (DEBUG==1) ? 8'haa : 8'b0;
+    PAL_R  <= (DEBUG==1) ? 8'hcc : 8'b0;
+    PAL_G  <= (DEBUG==1) ? 8'hf0 : 8'b0;
     PRIO_R <= 8'h00;
   end else begin
     if(I_PAL_CS & I_WR)
     begin
       case(I_A[9:8])
-      2'b00: PAL_B  <= I_D;
-      2'b01: PAL_R  <= I_D;
-      2'b10: PAL_G  <= I_D;
+      2'b00: PAL_B  <= (DEBUG==0) ? I_D : PAL_B;
+      2'b01: PAL_R  <= (DEBUG==0) ? I_D : PAL_R;
+      2'b10: PAL_G  <= (DEBUG==0) ? I_D : PAL_G;
       2'b11: PRIO_R <= I_D;
       endcase
     end

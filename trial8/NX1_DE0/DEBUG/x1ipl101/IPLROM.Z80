@@ -21,10 +21,10 @@ ERR_RET		equ		0ff8ah
 
 main:			ld		sp, 0
 				call	init
-;;				call	txtram_clear	; <-- debug : skip
+				call	txtram_clear	; <-- debug : skip
 				ld		de, welcome_msg	; <-- 
 				call	txt_print		; <--
-;;				call	vram_clear		; <--
+				call	vram_clear		; <--
 				ld		de, finding_msg	; <--
 				call	txt_print
 				call	isdriveready
@@ -154,7 +154,7 @@ vram_clear:		ld		bc, 1a02h
 				out		(c),a
 				ld		bc, 0
 				ld		h, 0
-				ld		de, 4000h
+				ld		de, 0004h	; <-- debug : full range 04000h
 				call	txtram_clrlp
 				in		a,(c)
 				ret

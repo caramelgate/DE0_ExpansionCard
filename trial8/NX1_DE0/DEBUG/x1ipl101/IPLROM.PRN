@@ -1,0 +1,330 @@
+			  Z80 ASSEMBLER - ZASM VER 1.6
+                      	;
+                      	; Orignal IPL  (under X1IPL)
+                      	;
+                      	
+                      	; ★固定番地でなければならない物
+                      	;
+                      	;		offset_066 … NMIリセット
+                      	;		offset_1CF … IPL overlay
+                      	;		offset_21A … Disk Read
+                      	
+                      	;-----------------------------------------------------------------------------
+                      	
+  FF80                	TXTCUR		equ		0ff80h
+  FF86                	TXTATR		equ		0ff86h
+                      	
+  FF87                	DRV_NUM		equ		0ff87h
+  FF8A                	ERR_RET		equ		0ff8ah
+                      	
+                      	
+  0000                				org		0
+                      	
+  0000  310000        	main:			ld		sp, 0
+  0003  CD4200        					call	init
+  0006  CD6900        					call	txtram_clear	; <-- debug : skip
+  0009  11F601        					ld		de, welcome_msg	; <-- 
+  000C  CD8100        					call	txt_print		; <--
+  000F  CDCA00        					call	vram_clear		; <--
+  0012  111D02        					ld		de, finding_msg	; <--
+  0015  CD8100        					call	txt_print
+  0018  CDE300        					call	isdriveready
+  001B  380D          					jr		c, fdcnotready
+  001D  CD1101        					call	loadfirstsec
+  0020  CD9201        					call	imagecheck
+  0023  200A          					jr		nz, nosyserr
+  0025  CDBA01        					call	execsysfile
+  0028  18FE          	mine:			jr		mine
+                      	
+  002A  110E02        	fdcnotready:	ld		de, notfound_msg
+  002D  1808          					jr		errorend
+  002F  11A901        	nosyserr:		ld		de, nosystem_msg
+  0032  1803          					jr		errorend
+  0034  113402        	fdcerror:		ld		de, error_msg
+  0037  CD8100        	errorend:		call	txt_print
+  003A  01FC0F        					ld		bc, 0ffch
+  003D  AF            					xor		a
+  003E  ED79          					out		(c), a
+  0040  18FE          	error_mine:		jr		error_mine
+                      	
+                      	
+                      	
+                      	
+  0042  210000        	init:			ld		hl, 0
+  0045  2280FF        					ld		(TXTCUR), hl
+  0048  3E07          					ld		a, 7
+  004A  3286FF        					ld		(TXTATR), a
+                      	
+  004D  213400        					ld		hl, fdcerror
+  0050  228AFF        					ld		(ERR_RET), hl
+  0053  AF            					xor		a
+  0054  3287FF        					ld		(DRV_NUM), a
+                      	
+  0057  010018        					ld		bc, 1800h
+  005A  3E01          					ld		a, 1
+  005C  ED79          					out		(c), a
+  005E  0C            					inc		c
+  005F  3E28          					ld		a, 40
+  0061  ED79          					out		(c), a
+  0063  C9            					ret
+                      	
+                      	;------------------------------------------------------------ NMI
+                      	
+  0064  00            					nop
+  0065  00            					nop
+  0066  C30000        	offset_066:		jp		main
+                      	
+                      	;------------------------------------------------------------ txt sub
+                      	
+  0069  010020        	txtram_clear:	ld		bc, 2000h
+  006C  2607          					ld		h, 7
+  006E  CD7500        					call	txtram_clrst
+  0071  0630          					ld		b, 30h
+  0073  2620          					ld		h, 20h
+  0075  110008        	txtram_clrst:	ld		de, 800h
+  0078  ED61          	txtram_clrlp:	out		(c),h
+  007A  03            					inc		bc
+  007B  1B            					dec		de
+  007C  7A            					ld		a, d
+  007D  B3            					or		e
+  007E  20F8          					jr		nz, txtram_clrlp
+  0080  C9            					ret
+                      	
+  0081  1A            	txt_print:		ld		a, (de)
+  0082  B7            					or		a
+  0083  C8            					ret		z
+  0084  CD8A00        					call	txt_print1
+  0087  13            					inc		de
+  0088  18F7          					jr		txt_print
+                      	
+                      	
+  008A  2A80FF        	txt_print1:		ld		hl, (TXTCUR)
+  008D  FE20          					cp		20h
+  008F  3815          					jr		c, ctrlcode
+  0091  C5            					push	bc
+  0092  CDB200        					call	calc_txtadrs
+  0095  F5            					push	af
+  0096  3A86FF        					ld		a, (TXTATR)
+  0099  ED79          					out		(c), a
+  009B  CBE0          					set		4, b				; 	or	b, 10h
+  009D  F1            					pop		af
+  009E  ED79          					out		(c), a
+  00A0  2C            					inc		l
+  00A1  2280FF        					ld		(TXTCUR), hl
+  00A4  C1            					pop		bc
+  00A5  C9            					ret
+                      	
+                      	
+  00A6  FE0D          	ctrlcode:		cp		0dh
+  00A8  2801          					jr		z, cur_cr
+  00AA  C9            					ret
+  00AB  2E00          	cur_cr:			ld		l, 0
+  00AD  24            					inc		h
+  00AE  2280FF        					ld		(TXTCUR), hl
+  00B1  C9            					ret
+                      	
+  00B2  D5            	calc_txtadrs:	push	de
+  00B3  E5            					push	hl
+  00B4  D1            					pop		de
+  00B5  6C            					ld		l, h
+  00B6  2600          					ld		h, 0
+  00B8  E5            					push	hl
+  00B9  C1            					pop		bc
+  00BA  29            					add		hl, hl			; 40 = (4+1) * 8
+  00BB  29            					add		hl, hl
+  00BC  09            					add		hl, bc
+  00BD  29            					add		hl, hl
+  00BE  29            					add		hl, hl
+  00BF  29            					add		hl, hl
+  00C0  4B            					ld		c, e
+  00C1  0620          					ld		b, 20h
+  00C3  09            					add		hl, bc
+  00C4  E5            					push	hl
+  00C5  C1            					pop		bc
+  00C6  D5            					push	de
+  00C7  E1            					pop		hl
+  00C8  D1            					pop		de
+  00C9  C9            					ret
+                      	
+                      	;------------------------------------------------------------ vram sub
+                      	
+  00CA  01021A        	vram_clear:		ld		bc, 1a02h
+  00CD  3E60          					ld		a, 60h
+  00CF  ED79          					out		(c),a
+  00D1  3E40          					ld		a, 40h
+  00D3  ED79          					out		(c),a
+  00D5  010000        					ld		bc, 0
+  00D8  2600          					ld		h, 0
+  00DA  110400        					ld		de, 0004h	; <-- debug : full range 04000h
+  00DD  CD7800        					call	txtram_clrlp
+  00E0  ED78          					in		a,(c)
+  00E2  C9            					ret
+                      	
+                      	
+  00E3  01FC0F        	isdriveready:	ld		bc, 0ffch
+  00E6  3E80          					ld		a, 80h
+  00E8  ED79          					out		(c), a
+  00EA  0EF8          					ld		c, 0f8h
+  00EC  1604          					ld		d, 4
+  00EE  210000        					ld		hl, 0
+  00F1  ED78          	readychk_lp:	in		a, (c)
+  00F3  F20001        					jp		p, driveready
+  00F6  2B            					dec		hl
+  00F7  7D            					ld		a, l
+  00F8  B4            					or		h
+  00F9  20F6          					jr		nz, readychk_lp
+  00FB  15            					dec		d
+  00FC  20F3          					jr		nz, readychk_lp
+  00FE  37            					scf
+  00FF  C9            					ret
+  0100  A7            	driveready:		and		a
+  0101  C9            					ret
+                      	
+                      	;------------------------------------------------------------ fdc sub
+                      	
+  0102  CD0701        	fdcctrl:		call	fdcwait					; b = 0fh
+  0105  ED79          					out		(c), a
+  0107  F5            	fdcwait:		push	af
+  0108  0EF8          					ld		c, 0f8h
+  010A  ED78          	fdcwaitlp:		in		a, (c)
+  010C  0F            					rrca
+  010D  38FB          					jr		c, fdcwaitlp
+  010F  F1            					pop		af
+  0110  C9            					ret
+                      	
+                      	
+  0111  110000        	loadfirstsec:	ld		de, 0
+  0114  2100FE        					ld		hl, 0fe00h
+  0117  3E01          					ld		a, 1
+                      	
+  0119  08            	file_read:		ex		af, af'
+  011A  7B            					ld		a, e
+  011B  07            					rlca
+  011C  CB12          					rl		d
+  011E  07            					rlca
+  011F  CB12          					rl		d
+  0121  07            					rlca
+  0122  CB12          					rl		d
+  0124  07            					rlca
+  0125  CB12          					rl		d
+  0127  7B            					ld		a, e
+  0128  E60F          					and		0fh
+  012A  5F            					ld		e, a
+  012B  3A87FF        	fread_lp:		ld		a, (DRV_NUM)
+  012E  E60F          					and		0fh
+  0130  F680          					or		80h
+  0132  CB42          					bit		0, d
+  0134  2802          					jr		z, diskface0
+  0136  F610          					or		10h
+  0138  01FC0F        	diskface0:		ld		bc, 0ffch
+  013B  ED79          					out		(c), a
+  013D  7A            					ld		a, d
+  013E  CB3F          					srl		a
+  0140  0EFB          					ld		c, 0fbh
+  0142  ED79          					out		(c), a
+  0144  3E10          					ld		a, 10h
+  0146  CD0201        					call	fdcctrl
+  0149  1C            	fread_trklp:	inc		e
+  014A  0EFA          					ld		c, 0fah
+  014C  ED59          					out		(c), e
+  014E  0EF8          					ld		c, 0f8h
+  0150  ED78          					in		a, (c)
+  0152  E698          					and		98h
+  0154  2808          					jr		z, fread_skok
+  0156  CD8801        					call	motor_off
+  0159  2A8AFF        					ld		hl, (ERR_RET)
+  015C  E3            					ex		(sp), HL
+  015D  C9            					ret
+                      	
+  015E  3E80          	fread_skok:		ld		a, 80h
+  0160  ED79          					out		(c), a
+  0162  0EF8          	read1sec_lp:	ld		c, 0f8h
+  0164  ED78          					in		a, (c)
+  0166  0F            					rrca
+  0167  300B          					jr		nc, read1sec_ed
+  0169  0F            					rrca
+  016A  30F6          					jr		nc, read1sec_lp
+  016C  0EFB          					ld		c, 0fbh
+  016E  ED78          					in		a, (c)
+  0170  77            					ld		(hl), a
+  0171  23            					inc		hl
+  0172  18EE          					jr		read1sec_lp
+  0174  08            	read1sec_ed:	ex		af, af'
+  0175  3D            					dec		a
+  0176  280B          					jr		z, fread_ed
+  0178  08            					ex		af, af'
+                      	
+  0179  7B            					ld		a, e
+  017A  FE10          					cp		10h
+  017C  38CB          					jr		c, fread_trklp
+  017E  14            					inc		d
+  017F  1E00          					ld		e, 0
+  0181  18A8          					jr		fread_lp
+                      	
+  0183  3E02          	fread_ed:		ld		a, 2
+  0185  CD0201        					call	fdcctrl
+  0188  3A87FF        	motor_off:		ld		a, (DRV_NUM)
+  018B  E60F          					and		0fh
+  018D  0EFC          					ld		c, 0fch
+  018F  ED79          					out		(c), a
+  0191  C9            					ret
+                      	
+                      	
+                      	
+  0192  2100FE        	imagecheck:		ld		hl, 0fe00h
+  0195  7E            					ld		a, (hl)
+  0196  FE01          					cp		1
+  0198  C0            					ret		nz
+  0199  2E0E          					ld		l, 0eh
+  019B  7E            					ld		a, (hl)
+  019C  FE53          					cp		'S'
+  019E  C0            					ret		nz
+  019F  23            					inc		hl
+  01A0  7E            					ld		a, (hl)
+  01A1  FE79          					cp		'y'
+  01A3  C0            					ret		nz
+  01A4  23            					inc		hl
+  01A5  7E            					ld		a, (hl)
+  01A6  FE73          					cp		's'
+  01A8  C9            					ret
+                      	
+  01A9  4E6F2073797374	nosystem_msg	db	"No system files!", 0
+                      	
+  01BA  2100FE        	execsysfile:	ld		hl, 0fe00h
+  01BD  1100FF        					ld		de, 0ff00h
+  01C0  012000        					ld		bc, 20h
+  01C3  EDB0          					ldir
+  01C5  15            					dec		d
+  01C6  1E0E          					ld		e, 0eh
+  01C8  AF            					xor		a
+  01C9  12            					ld		(de), a
+  01CA  1E01          					ld		e, 01h
+  01CC  CD8100        					call	txt_print
+                      	
+  01CF  2A12FF        	offset_1CF:		ld		hl, (0ff12h)		; length
+  01D2  2B            					dec		hl
+  01D3  24            					inc		h
+  01D4  7C            					ld		a, h
+  01D5  2A14FF        					ld		hl, (0ff14h)		; adrs
+  01D8  ED5B1EFF      					ld		de, (0ff1eh)		; trk, sec
+  01DC  CD1901        					call	file_read
+                      	
+  01DF  21F001        					ld		hl, prog_run
+  01E2  1178FF        					ld		de, 0ff78h
+  01E5  010600        					ld		bc, 6
+  01E8  EDB0          					ldir
+  01EA  2A16FF        					ld		hl, (0ff16h)		; startadrs
+  01ED  C378FF        					jp		0ff78h
+  01F0  01001E        	prog_run:		ld		bc, 01e00h
+  01F3  ED79          					out		(c), a
+  01F5  E9            					jp		(hl)
+                      	
+                      	
+  01F6  5831454D552049	welcome_msg		db	"X1EMU IPL version 1.01", 13, 0
+  020E  6E6F7420666F75	notfound_msg	db	"not found!", 0, 0
+  021A  C31901        	offset_21A		jp	file_read
+  021D  53656172636869	finding_msg		db	"Searching FD images...", 0
+  0234  46444320657272	error_msg		db	"FDC error!", 0
+                      	
+  023F                		end
+

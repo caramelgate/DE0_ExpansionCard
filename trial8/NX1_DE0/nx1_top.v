@@ -651,7 +651,7 @@ n8877 #(
 	.wait_n(fd5_wait_n),
 
 	.rst_n(!sys_reset),
-	.clk(ZCLK)//clk32M)
+	.clk(clk32M)
 );
 
 
@@ -685,7 +685,7 @@ assign dma_sel = 1'b0;//(~ZRFSH_n | ~ZBUSAK_n) & ~firm_en;
 
 nx1_sub #(
 	.RAM_DEPTH(11),
-	.JOY_EMU(1),
+	.JOY_EMU(0),
 	.def_DEVICE(def_DEVICE)				// 0=Xilinx , 1=Altera
 ) x1_sub (
   .I_reset(sub_reset),
@@ -783,7 +783,9 @@ wire width40   = pia_c[6];
 wire dam_en_n  = pia_c[5]; // DOUJI ACCESS fall trigger
 wire sm_scrl_n = pia_c[4]; // smooth scroll (L)
 
-PIA8255 pia(
+/*
+//PIA8255 pia(
+nx1_8255 pia(
   .I_RESET(sys_reset),
   .I_A(sa[1:0]),
   .I_CS(pia_cs),
@@ -798,14 +800,39 @@ PIA8255 pia(
 //
   .I_PC(8'h00), .O_PC(pia_c)
 );
+*/
+
+n8255 #(
+	.busfree(busfree)
+) pia (
+	.CLK(clk32M),			// in    [CPU] clk
+	.RESET(sys_reset),		// in    [CPU] reset
+	.ADDR(sa[1:0]),			// in    [CPU] addr[1:0]
+//	.REQ,					// in    [CPU] req
+//	.ACK,					// out   [CPU] ack/#wait
+	.WR(!swr_n),			// in    [CPU] wr
+	.WDATA(sdo[7:0]),		// in    [CPU] cs
+	.RDATA(pia_dr[7:0]),	// in    [CPU] cs
+
+	.CS(({pia_cs,swr_n}==2'b10) | ({pia_cs,srd_n}==2'b10)),
+	.WAIT_N(),
+
+	.PC5_fall(),			// out   [PPI] multibank req
+	.PA_IN(8'b0),			// in    [PPI] na
+	.PB_IN(pia_b[7:0]),		// in    [PPI] -- 
+	.PC_IN(8'b0),			// in    [PPI] na
+	.PA_OUT(pia_a[7:0]),	// out   [PPI] -- printer data --
+	.PB_OUT(),				// out   [PPI] na
+	.PC_OUT(pia_c[7:0])		// out   [PPI] -- 
+);
 
 /****************************************************************************
   JOY STICK MUX
 ****************************************************************************/
 wire [7:0] joy_mux_a , joy_mux_b;
 
-assign joy_mux_a = joy_ea;// & I_JOYA;
-assign joy_mux_b = joy_eb & I_JOYB;
+assign joy_mux_a = I_JOYA;//joy_ea & I_JOYA;
+assign joy_mux_b = I_JOYB;//joy_eb & I_JOYB;
 
 assign O_JOYA = 8'hff;
 assign O_JOYB = 8'hff;

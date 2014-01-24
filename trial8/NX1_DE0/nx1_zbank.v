@@ -46,8 +46,8 @@ module nx1_zbank #(
 	input	[15:0]	z_addr,				// in    [CPU] CPU address
 	input	[7:0]	z_wdata,			// in    [CPU] CPU write data
 	output	[7:0]	z_rdata,			// in    [CPU] CPU read data
-	input			z_rd,				// in    [CPU] 
-	input			z_wr,				// in    [CPU] 
+	input			z_rd,				// in    [CPU] rd
+	input			z_wr,				// in    [CPU] wr
 	input			z_mreq,				// in    [CPU] main select
 	input			z_ioreq,			// in    [CPU] vram select
 	input	[3:0]	z_vplane,			// in    [CPU] vram plane select
@@ -188,8 +188,9 @@ module nx1_zbank #(
 
 	assign z_wait_n=
 			(z_mreq==1'b1) ? wait_n_r :
-			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_multiplane==1'b1) ? wait_n_r :
-			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_multiplane==1'b0) & (z_addr[15:14]!=2'b00) ? wait_n_r :
+			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_wr==1'b1) & (z_multiplane==1'b1) ? wait_n_r :
+			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_wr==1'b1) & (z_multiplane==1'b0) & (z_addr[15:14]!=2'b00) ? wait_n_r :
+			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_rd==1'b1) & (z_addr[15:14]!=2'b00) ? wait_n_r :
 			1'b1;
 
 	assign mem_wr_ack=(mem_init_done==1'b1) & (mem_cmd_state_r[1:0]==2'b01) & (mem_cmd_empty==1'b1) ? 1'b1 : 1'b0;
@@ -262,9 +263,9 @@ module nx1_zbank #(
 	assign mem_cs_w[0]=
 			(z_mreq==1'b1) & (z_wr==1'b1) ? 1'b1 :
 			(z_mreq==1'b1) & (z_rd==1'b1) ? 1'b1 :
-			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_multiplane==1'b1) & (z_wr==1'b1) ? 1'b1 :
-			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_multiplane==1'b0) & (z_addr[15:14]!=2'b00) & (z_wr==1'b1) ? 1'b1 :
-			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_multiplane==1'b0) & (z_addr[15:14]!=2'b00) & (z_rd==1'b1) ? 1'b1 :
+			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_wr==1'b1) & (z_multiplane==1'b1) ? 1'b1 :
+			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_wr==1'b1) & (z_multiplane==1'b0) & (z_addr[15:14]!=2'b00) ? 1'b1 :
+			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_rd==1'b1) & (z_addr[15:14]!=2'b00) ? 1'b1 :
 			1'b0;
 
 	assign mem_cs_w[1]=(mem_init_done==1'b0) ? 1'b0 : mem_cs_r[0];
@@ -311,21 +312,33 @@ module nx1_zbank #(
 			(z_mreq==1'b0) ? {def_VBASE[31:18],2'b00,1'b0,z_addr[13:0],2'b0} :
 			32'b0;
 
+//assign O_GRB_CS  = iorq_r&((I_A[15:14]==2'b01)^I_DAM); // 4000-7FFF B-- / -RG
+//assign O_GRR_CS  = iorq_r&((I_A[15:14]==2'b10)^I_DAM); // 8000-BFFF -R- / B-G
+//assign O_GRG_CS  = iorq_r&((I_A[15:14]==2'b11)^I_DAM); // C000-FFFF --G / BR-
+
 	assign mem_wr_mask_w[3]=
 			(z_mreq==1'b1) & (z_addr[1:0]==2'b11) ? 1'b0 :
-			(z_mreq==1'b0) ? !z_vplane[3] :
+		//	(z_mreq==1'b0) ? !z_vplane[3] :
+			(z_mreq==1'b0) & (z_multiplane==1'b0) & (z_addr[15:14]==2'b11) ? 1'b0 :
+			(z_mreq==1'b0) & (z_multiplane==1'b1) & (z_addr[15:14]!=2'b11) ? 1'b0 :
 			1'b1;
 	assign mem_wr_mask_w[2]=
 			(z_mreq==1'b1) & (z_addr[1:0]==2'b10) ? 1'b0 :
-			(z_mreq==1'b0) ? !z_vplane[2] :
+		//	(z_mreq==1'b0) ? !z_vplane[2] :
+			(z_mreq==1'b0) & (z_multiplane==1'b0) & (z_addr[15:14]==2'b10) ? 1'b0 :
+			(z_mreq==1'b0) & (z_multiplane==1'b1) & (z_addr[15:14]!=2'b10) ? 1'b0 :
 			1'b1;
 	assign mem_wr_mask_w[1]=
 			(z_mreq==1'b1) & (z_addr[1:0]==2'b01) ? 1'b0 :
-			(z_mreq==1'b0) ? !z_vplane[1] :
+		//	(z_mreq==1'b0) ? !z_vplane[1] :
+			(z_mreq==1'b0) & (z_multiplane==1'b0) & (z_addr[15:14]==2'b01) ? 1'b0 :
+			(z_mreq==1'b0) & (z_multiplane==1'b1) & (z_addr[15:14]!=2'b01) ? 1'b0 :
 			1'b1;
 	assign mem_wr_mask_w[0]=
 			(z_mreq==1'b1) & (z_addr[1:0]==2'b00) ? 1'b0 :
-			(z_mreq==1'b0) ? !z_vplane[0] :
+		//	(z_mreq==1'b0) ? !z_vplane[0] :
+		//	(z_mreq==1'b0) & (z_multiplane==1'b0) & (z_addr[15:14]==2'b00) ? 1'b0 :
+		//	(z_mreq==1'b0) & (z_multiplane==1'b1) & (z_addr[15:14]!=2'b00) ? 1'b0 :
 			1'b1;
 
 	assign mem_wr_data_w[31:0]={z_wdata[7:0],z_wdata[7:0],z_wdata[7:0],z_wdata[7:0]};
