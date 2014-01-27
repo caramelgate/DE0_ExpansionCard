@@ -20,7 +20,7 @@ module nx1_de0ec8 #(
 	parameter	def_fdd_flash=0,		// flash fdd image
 //	parameter	def_EXTEND_BIOS=0,		// extend BIOS MENU & NoICE-Z80 resource-free monitor
 	parameter	SIM_FAST=0,				// fast simulation
-	parameter	DEBUG=1,				// 
+	parameter	DEBUG=0,				// 
 	parameter	def_MBASE=32'h00000000,	// main memory base address
 	parameter	def_BBASE=32'h00100000,	// bank memory base address
 	parameter	def_VBASE=32'h00180000	// video base address
@@ -248,6 +248,7 @@ module nx1_de0ec8 #(
 	wire	clk32M;
 	wire	clk64M;
 	wire	clk128M;
+	wire	CLK50D;
 
 	assign clk50M=CLOCK_50;
 	assign clk24M=CLOCK_50;//CLK24;
@@ -327,12 +328,40 @@ module nx1_de0ec8 #(
 	wire	crtc_vs;
 	wire	crtc_de;
 
-	assign VGA_R[3:0]=(blank_n==1'b0) ? 4'b0 : v_red[7:4];
-	assign VGA_G[3:0]=(blank_n==1'b0) ? 4'b0 : v_grn[7:4];
-	assign VGA_B[3:0]=(blank_n==1'b0) ? 4'b0 : v_blu[7:4];
+	wire	[7:0] sdr_rdata;
+	wire	[7:0] mem_rdata;
+	wire	wait_n;
+	wire	sdr_cs;
+	wire	mem_cs;
+	wire	[15:0] z_addr;
+	wire	[7:0] z_dbg_rdata;
+	wire	z_mreq;
+	wire	z_ioreq;
+	wire	z_wr;
+	wire	z_rd;
+	wire	[3:0] z_vplane;
+	wire	z_multiplane;
 
-	assign VGA_HS=hsync_n;
-	assign VGA_VS=vsync_n;
+//	assign VGA_R[3:0]=(blank_n==1'b0) ? 4'b0 : v_red[7:4];
+//	assign VGA_G[3:0]=(blank_n==1'b0) ? 4'b0 : v_grn[7:4];
+//	assign VGA_B[3:0]=(blank_n==1'b0) ? 4'b0 : v_blu[7:4];
+//	assign VGA_HS=hsync_n;
+//	assign VGA_VS=vsync_n;
+
+	assign VGA_R[3:0]=
+			(DEBUG==0) & (v_de==1'b1) ? v_red[7:4] :
+			(DEBUG==1) & (v_de==1'b1) ? {v_red[7:6],z_mreq,1'b0} :
+			4'b0;
+	assign VGA_G[3:0]=
+			(DEBUG==0) & (v_de==1'b1) ? v_grn[7:4] :
+			(DEBUG==1) & (v_de==1'b1) ? {v_grn[7:6],!wait_n,1'b0} :
+			4'b0;
+	assign VGA_B[3:0]=
+			(DEBUG==0) & (v_de==1'b1) ? v_blu[7:4] :
+			(DEBUG==1) & (v_de==1'b1) ? {v_blu[7:6],z_ioreq,1'b0} :
+			4'b0;
+	assign VGA_HS=v_hsync;
+	assign VGA_VS=v_vsync;
 
 	assign ext_reset=!BUTTON[0];
 	assign ext_nmi=!BUTTON[1];
@@ -355,6 +384,9 @@ begin
 	assign clk128M=CLOCK_50_2;
 	assign lock32M=!ext_reset;
 
+//	assign CLK50D=!CLOCK_50;
+	assign CLK50D=1'b0;
+
 end
 	else
 begin
@@ -367,6 +399,16 @@ alt_altpll_50x32x64x128 clkgen1(
 	.c2(clk128M),
 	.locked(lock32M)
 );
+
+/*
+alt_altpll_50x50D clkgen2(
+	.areset(ext_reset),
+	.inclk0(CLOCK_50),
+	.c0(CLK50D),
+	.locked()
+);
+*/
+	assign CLK50D=1'b0;
 
 end
 endgenerate
@@ -403,8 +445,8 @@ syncgen #(
 	.ver_fp   (16'd8),			// vertical front porch (+margin)
 	.ver_sync (16'd2),			// vertical sync
 	.ver_bp   (16'd35),			// vertical back porch (+margin)
-	.hor_wpos (16'h0000),		// horizontal window start
-	.ver_wpos (16'h0000),		// vertical window start
+	.hor_wpos (16'h0010),		// horizontal window start
+	.ver_wpos (16'h0010),		// vertical window start
 	.hor_up   (16'h8000),		// horizontal resize
 	.ver_up   (16'h4000)		// vertical resize
 ) syncgen (
@@ -448,8 +490,8 @@ syncgen #(
 	.ver_fp   (16'd3+16'd168),	// vertical front porch (+margin)
 	.ver_sync (16'd6),			// vertical sync
 	.ver_bp   (16'd29),			// vertical back porch (+margin)
-	.hor_wpos (16'h0000),		// horizontal window start
-	.ver_wpos (16'h0000),		// vertical window start
+	.hor_wpos (16'h0010),		// horizontal window start
+	.ver_wpos (16'h0010),		// vertical window start
 	.hor_up   (16'h8000),		// horizontal resize
 	.ver_up   (16'h4000)		// vertical resize
 ) syncgen (
@@ -493,8 +535,8 @@ syncgen #(
 	.ver_fp   (16'd3),			// vertical front porch (+margin)
 	.ver_sync (16'd6),			// vertical sync
 	.ver_bp   (16'd29),			// vertical back porch (+margin)
-	.hor_wpos (16'h0000),		// horizontal window start
-	.ver_wpos (16'h0000),		// vertical window start
+	.hor_wpos (16'h0010),		// horizontal window start
+	.ver_wpos (16'h0010),		// vertical window start
 	.hor_up   (16'h8000),		// horizontal resize
 	.ver_up   (16'h4000)		// vertical resize
 ) syncgen (
@@ -538,8 +580,8 @@ syncgen #(
 	.ver_fp   (16'd1),			// vertical front porch (+margin)
 	.ver_sync (16'd1),			// vertical sync
 	.ver_bp   (16'd1),			// vertical back porch (+margin)
-	.hor_wpos (16'h0000),		// horizontal window start
-	.ver_wpos (16'h0000),		// vertical window start
+	.hor_wpos (16'h0010),		// horizontal window start
+	.ver_wpos (16'h0010),		// vertical window start
 	.hor_up   (16'h8000),		// horizontal resize
 	.ver_up   (16'h8000)		// vertical resize
 ) syncgen (
@@ -596,6 +638,7 @@ endgenerate
 
 	wire	sys_clk;
 	wire	mem_clk;
+	wire	mem_clk1;
 	wire	mem_rst_n;
 
 	wire	mem_cmd_req;
@@ -720,7 +763,8 @@ endgenerate
 	wire	p4_rd_error;
 
 	assign sys_clk=clk32M;	// 
-//	assign mem_clk=clk32M;
+//	assign mem_clk=clk64M;
+	assign mem_clk1=CLK50D;
 	assign mem_clk=CLOCK_50;	// sdr clock
 	assign mem_rst_n=!sys_reset;
 
@@ -761,6 +805,7 @@ nx1_mgsdr #(
 	.mem_rd_master(mem_rd_master[2:0]),				// out   [MEM] rd master[2:0]
 
 	.mem_init_done(MEM_INIT_DONE),	// out   [SYS] init_done
+//	.mem_clk1(mem_clk1),			// in    [SYS] clk +90deg
 	.mem_clk(mem_clk),				// in    [SYS] clk 54MHz
 	.mem_rst_n(mem_rst_n)			// in    [SYS] #reset
 );
@@ -927,19 +972,6 @@ nx1_mgarb #(
 	assign p3_rd_clk=sys_clk;
 	assign p3_rd_en=1'b0;
 
-	wire	[7:0] sdr_rdata;
-	wire	[7:0] mem_rdata;
-	wire	wait_n;
-	wire	sdr_cs;
-	wire	mem_cs;
-	wire	[15:0] z_addr;
-	wire	[7:0] z_dbg_rdata;
-	wire	z_mreq;
-	wire	z_ioreq;
-	wire	z_wr;
-	wire	z_rd;
-	wire	[3:0] z_vplane;
-	wire	z_multiplane;
 
 	assign sdr_cs=(def_sram==0) & (mram_cs==1'b1) ? 1'b1 : 1'b0;
 	assign mem_cs=(def_sram==1) & (mram_cs==1'b1) ? 1'b1 : 1'b0;
@@ -1044,8 +1076,8 @@ alt_altsyncram_rom8x4k rom_ipl(
 			(def_sram==0) & (ipl_cs==1'b0) ? sdr_rdata[7:0] :
 			sdr_rdata[7:0];
 
-	assign p4_cmd_clk=mem_clk;
-	assign p4_rd_clk=mem_clk;
+	assign p4_cmd_clk=sys_clk;
+	assign p4_rd_clk=sys_clk;
 
 	wire	[19:0] faddr;
 	wire	frd;
@@ -1179,6 +1211,9 @@ nx1_top #(
 	.def_BBASE(def_BBASE),	// bank memory base address
 	.def_VBASE(def_VBASE)	// video base address
 ) nx1_top (
+	.EX_HS(hsync_n),			// in    [SYNC] horizontal sync
+	.EX_VS(vsync_n),			// in    [SYNC] vertical sync
+	.EX_DE(blank_n),			// in    [SYNC] disp/#blank
 	.EX_HDISP(EX_HDISP),		// in    [SYNC] horizontal disp
 	.EX_VDISP(EX_VDISP),		// in    [SYNC] vertical disp
 	.EX_HBP(EX_HBP),			// in    [SYNC] horizontal backporch

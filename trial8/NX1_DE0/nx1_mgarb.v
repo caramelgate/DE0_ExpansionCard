@@ -352,52 +352,52 @@ module nx1_mgarb #(
 			3'h0;
 
 	assign mem_pri0_req_master_tmp[2:0]=
-			(mem_pri_r[2:0]==3'h0) & ({mem1_cmd_req}==1'b1) ? 3'h1 :
-			(mem_pri_r[2:0]==3'h0) & ({mem2_cmd_req,mem1_cmd_req}==2'b10) ? 3'h2 :
-			(mem_pri_r[2:0]==3'h0) & ({mem3_cmd_req,mem2_cmd_req,mem1_cmd_req}==3'b100) ? 3'h3 :
-			(mem_pri_r[2:0]==3'h0) & ({mem4_cmd_req,mem3_cmd_req,mem2_cmd_req,mem1_cmd_req}==4'b1000) ? 3'h4 :
-			(mem_pri_r[2:0]==3'h0) & ({mem5_cmd_req,mem4_cmd_req,mem3_cmd_req,mem2_cmd_req,mem1_cmd_req}==5'b10000) ? 3'h5 :
-			(mem_pri_r[2:0]==3'h0) & ({mem0_cmd_req,mem5_cmd_req,mem4_cmd_req,mem3_cmd_req,mem2_cmd_req,mem1_cmd_req}==6'b100000) ? 3'h0 :
+			({mem5_cmd_req}==1'b1) ? 3'h5 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b10) ? 3'h4 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h0) & ({mem1_cmd_req}==1'b1) ? 3'h1 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h0) & ({mem2_cmd_req,mem1_cmd_req}==2'b10) ? 3'h2 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h0) & ({mem3_cmd_req,mem2_cmd_req,mem1_cmd_req}==3'b100) ? 3'h3 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h0) & ({mem0_cmd_req,mem3_cmd_req,mem2_cmd_req,mem1_cmd_req}==4'b1000) ? 3'h0 :
 			3'h1;
 	assign mem_pri1_req_master_tmp[2:0]=
-			(mem_pri_r[2:0]==3'h1) & ({mem2_cmd_req}==1'b1) ? 3'h2 :
-			(mem_pri_r[2:0]==3'h1) & ({mem3_cmd_req,mem2_cmd_req}==2'b10) ? 3'h3 :
-			(mem_pri_r[2:0]==3'h1) & ({mem4_cmd_req,mem3_cmd_req,mem2_cmd_req}==3'b100) ? 3'h4 :
-			(mem_pri_r[2:0]==3'h1) & ({mem5_cmd_req,mem4_cmd_req,mem3_cmd_req,mem2_cmd_req}==4'b1000) ? 3'h5 :
-			(mem_pri_r[2:0]==3'h1) & ({mem0_cmd_req,mem5_cmd_req,mem4_cmd_req,mem3_cmd_req,mem2_cmd_req}==5'b10000) ? 3'h0 :
-			(mem_pri_r[2:0]==3'h1) & ({mem1_cmd_req,mem0_cmd_req,mem5_cmd_req,mem4_cmd_req,mem3_cmd_req,mem2_cmd_req}==6'b100000) ? 3'h1 :
+			({mem5_cmd_req}==1'b1) ? 3'h5 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b10) ? 3'h4 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h1) & ({mem2_cmd_req}==1'b1) ? 3'h2 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h1) & ({mem3_cmd_req,mem2_cmd_req}==2'b10) ? 3'h3 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h1) & ({mem0_cmd_req,mem3_cmd_req,mem2_cmd_req}==3'b100) ? 3'h0 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h1) & ({mem1_cmd_req,mem0_cmd_req,mem3_cmd_req,mem2_cmd_req}==4'b1000) ? 3'h1 :
 			3'h2;
 	assign mem_pri2_req_master_tmp[2:0]=
-			(mem_pri_r[2:0]==3'h2) & ({mem3_cmd_req}==1'b1) ? 3'h3 :
-			(mem_pri_r[2:0]==3'h2) & ({mem4_cmd_req,mem3_cmd_req}==2'b10) ? 3'h4 :
-			(mem_pri_r[2:0]==3'h2) & ({mem5_cmd_req,mem4_cmd_req,mem3_cmd_req}==3'b100) ? 3'h5 :
-			(mem_pri_r[2:0]==3'h2) & ({mem0_cmd_req,mem5_cmd_req,mem4_cmd_req,mem3_cmd_req}==4'b1000) ? 3'h0 :
-			(mem_pri_r[2:0]==3'h2) & ({mem1_cmd_req,mem0_cmd_req,mem5_cmd_req,mem4_cmd_req,mem3_cmd_req}==5'b10000) ? 3'h1 :
-			(mem_pri_r[2:0]==3'h2) & ({mem2_cmd_req,mem1_cmd_req,mem0_cmd_req,mem5_cmd_req,mem4_cmd_req,mem3_cmd_req}==6'b100000) ? 3'h2 :
+			({mem5_cmd_req}==1'b1) ? 3'h5 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b10) ? 3'h4 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h2) & ({mem3_cmd_req}==1'b1) ? 3'h3 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h2) & ({mem0_cmd_req,mem3_cmd_req}==2'b10) ? 3'h0 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h2) & ({mem1_cmd_req,mem0_cmd_req,mem3_cmd_req}==3'b100) ? 3'h1 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h2) & ({mem2_cmd_req,mem1_cmd_req,mem0_cmd_req,mem3_cmd_req}==4'b1000) ? 3'h2 :
 			3'h3;
 	assign mem_pri3_req_master_tmp[2:0]=
-			(mem_pri_r[2:0]==3'h3) & ({mem4_cmd_req}==1'b1) ? 3'h4 :
-			(mem_pri_r[2:0]==3'h3) & ({mem5_cmd_req,mem4_cmd_req}==2'b10) ? 3'h5 :
-			(mem_pri_r[2:0]==3'h3) & ({mem0_cmd_req,mem5_cmd_req,mem4_cmd_req}==3'b100) ? 3'h0 :
-			(mem_pri_r[2:0]==3'h3) & ({mem1_cmd_req,mem0_cmd_req,mem5_cmd_req,mem4_cmd_req}==4'b1000) ? 3'h1 :
-			(mem_pri_r[2:0]==3'h3) & ({mem2_cmd_req,mem1_cmd_req,mem0_cmd_req,mem5_cmd_req,mem4_cmd_req}==5'b10000) ? 3'h2 :
-			(mem_pri_r[2:0]==3'h3) & ({mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req,mem5_cmd_req,mem4_cmd_req}==6'b100000) ? 3'h3 :
-			3'h4;
+			({mem5_cmd_req}==1'b1) ? 3'h5 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b10) ? 3'h4 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h3) & ({mem0_cmd_req}==1'b1) ? 3'h0 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h3) & ({mem1_cmd_req,mem0_cmd_req}==2'b10) ? 3'h1 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h3) & ({mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==3'b100) ? 3'h2 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h3) & ({mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==4'b1000) ? 3'h3 :
+			3'h0;
 	assign mem_pri4_req_master_tmp[2:0]=
-			(mem_pri_r[2:0]==3'h4) & ({mem5_cmd_req}==1'b1) ? 3'h5 :
-			(mem_pri_r[2:0]==3'h4) & ({mem0_cmd_req,mem5_cmd_req}==2'b10) ? 3'h0 :
-			(mem_pri_r[2:0]==3'h4) & ({mem1_cmd_req,mem0_cmd_req,mem5_cmd_req}==3'b100) ? 3'h1 :
-			(mem_pri_r[2:0]==3'h4) & ({mem2_cmd_req,mem1_cmd_req,mem0_cmd_req,mem5_cmd_req}==4'b1000) ? 3'h2 :
-			(mem_pri_r[2:0]==3'h4) & ({mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req,mem5_cmd_req}==5'b10000) ? 3'h3 :
-			(mem_pri_r[2:0]==3'h4) & ({mem4_cmd_req,mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req,mem5_cmd_req}==6'b100000) ? 3'h4 :
-			3'h5;
+			({mem5_cmd_req}==1'b1) ? 3'h5 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b10) ? 3'h4 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h4) & ({mem0_cmd_req}==1'b1) ? 3'h0 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h4) & ({mem1_cmd_req,mem0_cmd_req}==2'b10) ? 3'h1 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h4) & ({mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==3'b100) ? 3'h2 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h4) & ({mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==4'b1000) ? 3'h3 :
+			3'h0;
 	assign mem_pri5_req_master_tmp[2:0]=
-			(mem_pri_r[2:0]==3'h5) & ({mem0_cmd_req}==1'b1) ? 3'h0 :
-			(mem_pri_r[2:0]==3'h5) & ({mem1_cmd_req,mem0_cmd_req}==2'b10) ? 3'h1 :
-			(mem_pri_r[2:0]==3'h5) & ({mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==3'b100) ? 3'h2 :
-			(mem_pri_r[2:0]==3'h5) & ({mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==4'b1000) ? 3'h3 :
-			(mem_pri_r[2:0]==3'h5) & ({mem4_cmd_req,mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==5'b10000) ? 3'h4 :
-			(mem_pri_r[2:0]==3'h5) & ({mem5_cmd_req,mem4_cmd_req,mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==6'b100000) ? 3'h5 :
+			({mem5_cmd_req}==1'b1) ? 3'h5 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b10) ? 3'h4 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h5) & ({mem0_cmd_req}==1'b1) ? 3'h0 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h5) & ({mem1_cmd_req,mem0_cmd_req}==2'b10) ? 3'h1 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h5) & ({mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==3'b100) ? 3'h2 :
+			({mem4_cmd_req,mem5_cmd_req}==2'b00) & (mem_pri_r[2:0]==3'h5) & ({mem3_cmd_req,mem2_cmd_req,mem1_cmd_req,mem0_cmd_req}==4'b1000) ? 3'h3 :
 			3'h0;
 
 	assign mem_master_w[2:0]=(mem_cmd_req_r==1'b0) & (mem_req_tmp==1'b1) ? mem_req_master_tmp[2:0] : mem_master_r[2:0];
@@ -602,7 +602,7 @@ nx1_mgbuff #(
 
 nx1_mgbuff #(
 	.DEVICE(DEVICE)			// device : 0=xilinx / 1=altera / 2= / 3= 
-) p5_buff(
+) p4_buff(
 	.p0_cmd_clk(p4_cmd_clk),						// in    [MIG] cmd clk
 	.p0_cmd_en(p4_cmd_en),							// in    [MIG] cmd en
 	.p0_cmd_instr(p4_cmd_instr[2:0]),				// in    [MIG] cmd inst[2:0]

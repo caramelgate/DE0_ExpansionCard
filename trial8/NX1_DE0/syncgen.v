@@ -75,8 +75,12 @@ module syncgen #(
 	reg		vsync_n_r;
 	wire	hblank_n_w;
 	reg		hblank_n_r;
+	wire	hwblank_n_w;
+	reg		hwblank_n_r;
 	wire	vblank_n_w;
 	reg		vblank_n_r;
+	wire	vwblank_n_w;
+	reg		vwblank_n_r;
 	wire	vnext_w;
 	reg		vnext_r;
 	wire	blank_n_w;
@@ -141,7 +145,9 @@ module syncgen #(
 				hsync_n_r <= 1'b0;
 				vsync_n_r <= 1'b0;
 				hblank_n_r <= 1'b0;
+				hwblank_n_r <= 1'b0;
 				vblank_n_r <= 1'b0;
+				vwblank_n_r <= 1'b0;
 				vnext_r <= 1'b0;
 				blank_n_r <= 1'b0;
 				hdiv_r[16:0] <= 17'b0;
@@ -156,7 +162,9 @@ module syncgen #(
 				hsync_n_r <= hsync_n_w;
 				vsync_n_r <= vsync_n_w;
 				hblank_n_r <= hblank_n_w;
+				hwblank_n_r <= hwblank_n_w;
 				vblank_n_r <= vblank_n_w;
+				vwblank_n_r <= vwblank_n_w;
 				vnext_r <= vnext_w;
 				blank_n_r <= blank_n_w;
 				hdiv_r[16:0] <= hdiv_w[16:0];
@@ -224,11 +232,24 @@ module syncgen #(
 			(htiming_r[4]==1'b0) & (htiming_r[3]==1'b0) ? hblank_n_r :
 			1'b0;
 
+	assign hwblank_n_w=
+			(htiming_r[4]==1'b1) ? 1'b0 :
+			(htiming_r[4]==1'b0) & (htiming_r[8]==1'b1) ? 1'b1 :
+			(htiming_r[4]==1'b0) & (htiming_r[8]==1'b0) ? hwblank_n_r :
+			1'b0;
+
 	assign vblank_n_w=
 			(hcount_end==1'b1) & (vtiming_r[4]==1'b1) ? 1'b0 :
 			(hcount_end==1'b1) & (vtiming_r[4]==1'b0) & (vtiming_r[3]==1'b1) ? 1'b1 :
 			(hcount_end==1'b1) & (vtiming_r[4]==1'b0) & (vtiming_r[3]==1'b0) ? vblank_n_r :
 			(hcount_end==1'b0) ? vblank_n_r :
+			1'b0;
+
+	assign vwblank_n_w=
+			(hcount_end==1'b1) & (vtiming_r[4]==1'b1) ? 1'b0 :
+			(hcount_end==1'b1) & (vtiming_r[4]==1'b0) & (vtiming_r[8]==1'b1) ? 1'b1 :
+			(hcount_end==1'b1) & (vtiming_r[4]==1'b0) & (vtiming_r[8]==1'b0) ? vwblank_n_r :
+			(hcount_end==1'b0) ? vwblank_n_r :
 			1'b0;
 
 	assign vnext_w=
@@ -248,7 +269,8 @@ module syncgen #(
 			(hor_up[15]==1'b0) ? hdiv_w[15] :
 			1'b0;
 
-	assign hdiv_w[15:0]=(hblank_n_r==1'b0) ? {1'b0,hor_up[14:0]} : {1'b0,hdiv_r[14:0]}+{1'b0,hor_up[14:0]};
+//	assign hdiv_w[15:0]=(hblank_n_r==1'b0) ? {1'b0,hor_up[14:0]} : {1'b0,hdiv_r[14:0]}+{1'b0,hor_up[14:0]};
+	assign hdiv_w[15:0]=(hblank_n_r==1'b0) ? 16'b0 : {1'b0,hdiv_r[14:0]}+{1'b0,hor_up[14:0]};
 
 	assign vdiv_w[16]=
 		//	(vblank_n_r==1'b0) ? 1'b1 :
@@ -262,9 +284,10 @@ module syncgen #(
 			1'b0;
 
 	assign vdiv_w[15:0]=
-			(vblank_n_r==1'b0) ? {1'b0,ver_up[14:0]} :
-			(vblank_n_r==1'b1) & (hcount_end==1'b0) ? vdiv_r[15:0] :
-			(vblank_n_r==1'b1) & (hcount_end==1'b1) ? {1'b0,vdiv_r[14:0]}+{1'b0,ver_up[14:0]} :
+//			(vwblank_n_r==1'b0) ? 16'b0 ://{1'b0,ver_up[14:0]} :
+			(vwblank_n_r==1'b0) ? {1'b0,ver_up[14:0]} :
+			(vwblank_n_r==1'b1) & (hcount_end==1'b0) ? vdiv_r[15:0] :
+			(vwblank_n_r==1'b1) & (hcount_end==1'b1) ? {1'b0,vdiv_r[14:0]}+{1'b0,ver_up[14:0]} :
 			vdiv_r[15:0];
 
 endmodule

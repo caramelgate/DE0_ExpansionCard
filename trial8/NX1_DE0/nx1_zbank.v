@@ -187,7 +187,8 @@ module nx1_zbank #(
 	wire	mem_wr_ack;
 
 	assign z_wait_n=
-			(z_mreq==1'b1) ? wait_n_r :
+			(z_mreq==1'b1) & (z_wr==1'b1) ? wait_n_r :
+			(z_mreq==1'b1) & (z_rd==1'b1) ? wait_n_r :
 			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_wr==1'b1) & (z_multiplane==1'b1) ? wait_n_r :
 			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_wr==1'b1) & (z_multiplane==1'b0) & (z_addr[15:14]!=2'b00) ? wait_n_r :
 			(z_mreq==1'b0) & (z_ioreq==1'b1) & (z_rd==1'b1) & (z_addr[15:14]!=2'b00) ? wait_n_r :
@@ -230,7 +231,7 @@ module nx1_zbank #(
 			begin
 				mem_cs_r[3:0] <= 4'b0;
 				mem_req_r[1:0] <= 2'b0;
-				wait_n_r <= 1'b1;
+				wait_n_r <= 1'b0;
 
 				mem_cmd_state_r[1:0] <= 2'b0;
 				mem_cmd_req_r <= 1'b0;
@@ -312,10 +313,6 @@ module nx1_zbank #(
 			(z_mreq==1'b0) ? {def_VBASE[31:18],2'b00,1'b0,z_addr[13:0],2'b0} :
 			32'b0;
 
-//assign O_GRB_CS  = iorq_r&((I_A[15:14]==2'b01)^I_DAM); // 4000-7FFF B-- / -RG
-//assign O_GRR_CS  = iorq_r&((I_A[15:14]==2'b10)^I_DAM); // 8000-BFFF -R- / B-G
-//assign O_GRG_CS  = iorq_r&((I_A[15:14]==2'b11)^I_DAM); // C000-FFFF --G / BR-
-
 	assign mem_wr_mask_w[3]=
 			(z_mreq==1'b1) & (z_addr[1:0]==2'b11) ? 1'b0 :
 		//	(z_mreq==1'b0) ? !z_vplane[3] :
@@ -345,54 +342,5 @@ module nx1_zbank #(
 
 	assign mem_rd_data_w[31:0]=(mem_rd_ack==1'b1) ? mem_rd_data[31:0] : mem_rd_data_r[31:0];
 
-/*
-	wire	zmem_sel;
-	wire	[31:0] zmem_addr;
-	wire	[3:0] zmem_be;
-	wire	[31:0] zmem_wdata;
-	wire	[7:0] zmem_rdata;
-	wire	[31:0] vmem_addr;
-	wire	[3:0] vmem_be;
-	wire	[31:0] vmem_wdata;
-	wire	[7:0] vmem_rdata;
-
-	assign zmem_addr[31:0]=
-			(z_addr[15]==1'b1) ? {def_MBASE[31:16],1'b0,z_addr[14:2],2'b0} :
-			(z_addr[15]==1'b0) & (z_czbank[4]==1'b1) ? {def_MBASE[31:16],1'b0,z_addr[14:2],2'b0} :
-			(z_addr[15]==1'b0) & (z_czbank[4]==1'b0) ? {def_BBASE[31:19],z_czbank[3:0],z_addr[14:2],2'b0} :
-			32'b0;
-
-	assign zmem_be[3]=(z_addr[1:0]==2'b11) ? 1'b1 : 1'b0;
-	assign zmem_be[2]=(z_addr[1:0]==2'b10) ? 1'b1 : 1'b0;
-	assign zmem_be[1]=(z_addr[1:0]==2'b01) ? 1'b1 : 1'b0;
-	assign zmem_be[0]=(z_addr[1:0]==2'b00) ? 1'b1 : 1'b0;
-
-	assign zmem_wdata[31:0]={z_wdata[7:0],z_wdata[7:0],z_wdata[7:0],z_wdata[7:0]};
-
-	assign zmem_rdata[7:0]=
-			(z_addr[1:0]==2'b11) ? mem_rd_data_r[31:24] :
-			(z_addr[1:0]==2'b10) ? mem_rd_data_r[23:16] :
-			(z_addr[1:0]==2'b01) ? mem_rd_data_r[15:8] :
-			(z_addr[1:0]==2'b00) ? mem_rd_data_r[7:0] :
-			8'b0;
-
-	assign vmem_addr[31:0]=
-			{def_VBASE[31:18],2'b00,1'b0,z_addr[13:0],2'b0} :
-			32'b0;
-
-	assign vmem_be[3]=z_vplane[3];
-	assign vmem_be[2]=z_vplane[2];
-	assign vmem_be[1]=z_vplane[1];
-	assign vmem_be[0]=z_vplane[0];
-
-	assign vmem_wdata[31:0]={z_wdata[7:0],z_wdata[7:0],z_wdata[7:0],z_wdata[7:0]};
-
-	assign vmem_rdata[7:0]=
-			(z_addr[15:14]==2'b11) ? mem_rd_data_r[31:24] :
-			(z_addr[15:14]==2'b10) ? mem_rd_data_r[23:16] :
-			(z_addr[15:14]==2'b01) ? mem_rd_data_r[15:8] :
-			(z_addr[15:14]==2'b00) ? mem_rd_data_r[7:0] :
-			8'b0;
-*/
 
 endmodule

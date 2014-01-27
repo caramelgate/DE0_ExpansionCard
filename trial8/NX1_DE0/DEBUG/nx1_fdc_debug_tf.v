@@ -26,8 +26,8 @@ module tf (
 	begin
 		forever
 		begin
-			CLK50_r <= 1'b0; #8;
-			CLK50_r <= 1'b1; #8;
+			CLK50_r <= 1'b0; #10;
+			CLK50_r <= 1'b1; #10;
 		end
 	end
 

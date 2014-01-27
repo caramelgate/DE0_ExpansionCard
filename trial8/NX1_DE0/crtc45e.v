@@ -67,14 +67,15 @@ module crtc45e #(
 	parameter	init_reg9=5'h07,		// caracter scan line 8 -1
 	parameter	init_reg12=14'h0000		// memory address
 ) (
-	input			EX_HDISP,			// in    [CRT] horizontal disp
-	input			EX_VDISP,			// in    [CRT] vertical disp
-	input			EX_HSAV,			// in    [CRT] horizontal sav
-	input			EX_HEAV,			// in    [CRT] horizontal eav
-	input			EX_HC,				// in    [CRT] horizontal countup
-	input			EX_VSAV,			// in    [CRT] vertical sav
-	input			EX_VEAV,			// in    [CRT] vertical eav
-	input			EX_VC,				// in    [CRT] vertical countup
+	input			EX_HDISP,			// in    [SYNC] horizontal disp
+	input			EX_VDISP,			// in    [SYNC] vertical disp
+	input			EX_HBP,				// in    [SYNC] horizontal backporch
+	input			EX_HSAV,			// in    [SYNC] horizontal sav
+	input			EX_HEAV,			// in    [SYNC] horizontal eav
+	input			EX_HC,				// in    [SYNC] horizontal countup
+	input			EX_VSAV,			// in    [SYNC] vertical sav
+	input			EX_VEAV,			// in    [SYNC] vertical eav
+	input			EX_VC,				// in    [SYNC] vertical countup
 
 	input			I_CLK,				// in    [crtc] clk
 	input			I_E,				// in    [crtc] cycle-e
@@ -87,23 +88,16 @@ module crtc45e #(
 //	input			I_CKE,				// in    [crtc] cke
 	input			I_RSTn,				// in    [crtc] #rst
 
-//	output	[13:0]	cg_ma,				// out   [crtc] cg mem-addr
-
-//	output			tp_hsav,
-//	output			tp_heav,
-//	output			tp_vsav,
-//	output			tp_veav,
-//	output			tp_exhs,
-//	output			tp_exvs,
-//	output			tp_ras,
-
-	input			I_W40,				// in
+	input			I_W40,				// in    [crtc] 40/#80
 
 	output			QA,
 	output			QB,
 	output			QC,
 	output			QD,
 	output			QP,
+
+	output			vclk_shift,	
+	output			vclk_even,	
 
 	output			vclk_cyc0,	// ma,ra load
 	output			vclk_cyc1,	// attr latch
@@ -114,12 +108,35 @@ module crtc45e #(
 	output			vclk_cyc6,
 	output			vclk_cyc7,	// 
 
+	output	[4:0]	gra,				// out   [crtc] ras-addr
+	output	[13:0]	gma,				// out   [crtc] mem-addr
+
 	output	[4:0]	O_RA,				// out   [crtc] ras-addr
 	output	[13:0]	O_MA,				// out   [crtc] mem-addr
 	output			O_H_SYNC,			// out   [crtc] hdisp/#blank
 	output			O_V_SYNC,			// out   [crtc] vdisp/#blank
 	output			O_DISPTMG			// out   [crtc] disp/#blank
 );
+
+	wire	hbp;
+	wire	hsav;
+	wire	heav;
+	wire	hdisp;
+	wire	hblank;
+	wire	vsav;
+	wire	veav;
+	wire	vdisp;
+	wire	vblank;
+
+	assign hbp=EX_HBP;
+	assign hsav=EX_HSAV;
+	assign heav=EX_HEAV;
+	assign hdisp=({EX_HDISP,EX_WHDISP_r}==2'b11) ? 1'b1 : 1'b0;
+	assign hblank=!EX_HDISP;
+	assign vsav=EX_VSAV;
+	assign veav=EX_VEAV;
+	assign vdisp=EX_VDISP;
+	assign vblank=!EX_VDISP;
 
 	wire	cpu_clk;
 	wire	cpu_cyc_e;
@@ -188,16 +205,19 @@ module crtc45e #(
 			3'b0;
 
 	assign vclk_div_out_w[7:0]=
-			(EX_HDISP==1'b0) ? 8'b00000001 :
-			(EX_HDISP==1'b1) &  ((EX_HC==1'b1) & (vclk_div_under_r==1'b1) & (vclk_div_r[2:0]==3'b111)) ? 8'b00000001 :
-			(EX_HDISP==1'b1) & !((EX_HC==1'b1) & (vclk_div_under_r==1'b1) & (vclk_div_r[2:0]==3'b111)) ? {vclk_div_out_r[6:0],1'b0} :
+			(hdisp==1'b0) ? 8'b00000001 :
+			(hdisp==1'b1) &  ((EX_HC==1'b1) & (vclk_div_under_r==1'b1) & (vclk_div_r[2:0]==3'b111)) ? 8'b00000001 :
+			(hdisp==1'b1) & !((EX_HC==1'b1) & (vclk_div_under_r==1'b1) & (vclk_div_r[2:0]==3'b111)) ? {vclk_div_out_r[6:0],1'b0} :
 			8'b00000001;
 
 	assign QP = 1'b0;
 	assign QA = 1'b1;
-	assign QB = ~vclk_div_r[0];
-	assign QC = ~vclk_div_r[1];
-	assign QD = ~vclk_div_r[2];
+	assign QB = 1'b0;//~vclk_div_r[0];
+	assign QC = 1'b0;//~vclk_div_r[1];
+	assign QD = 1'b0;//~vclk_div_r[2];
+
+	assign vclk_shift=(EX_HC==1'b1) & (vclk_div_under_r==1'b1) ? 1'b1 : 1'b0;
+	assign vclk_even=vclk_div_r[0];
 
 	assign vclk_cyc0=vclk_div_out_r[0];
 	assign vclk_cyc1=vclk_div_out_r[1];
@@ -208,20 +228,10 @@ module crtc45e #(
 	assign vclk_cyc6=vclk_div_out_r[6];
 	assign vclk_cyc7=(vclk_div_r[2:0]==3'b111) & (EX_HC==1'b1) & (vclk_div_under_r==1'b1) ? 1'b1 : 1'b0;
 
-
-//	assign cg_ma[13:0]=cg_mem_addr[13:0];
-//	assign O_RA[4:0]=ras_addr[4:0];
-//	assign O_MA[13:0]=mem_addr[13:0];
-//	assign O_H_SYNC=hsync_out;
-//	assign O_V_SYNC=vsync_out;
-//	assign O_DISPTMG=disp_out;
-
-
-
-	wire	W_Vmode;
-	wire	W_IntSync;
-	wire	[1:0] W_DScue;
-	wire	[1:0] W_CScue;
+//	wire	W_Vmode;
+//	wire	W_IntSync;
+//	wire	[1:0] W_DScue;
+//	wire	[1:0] W_CScue;
 
 	reg		[4:0] R_ADR;
 	reg		[7:0] R_Nht;
@@ -236,10 +246,10 @@ module crtc45e #(
 	reg		[4:0] R_Nr;
 	reg		[13:0] R_Msa;
 
-	assign W_VMode   =  R_Intr[1];
-	assign W_IntSync =  R_Intr[0];
-	assign W_DScue   = R_Intr[5:4]; // disp   scue 0,1,2 or OFF
-	assign W_CScue   = R_Intr[7:6]; // cursor scue 0,1,2 or OFF
+//	assign W_VMode   =  R_Intr[1];
+//	assign W_IntSync =  R_Intr[0];
+//	assign W_DScue   = R_Intr[5:4]; // disp   scue 0,1,2 or OFF
+//	assign W_CScue   = R_Intr[7:6]; // cursor scue 0,1,2 or OFF
 
 	always@(posedge cpu_clk or negedge v_rst_n)
 	begin
@@ -276,9 +286,15 @@ module crtc45e #(
 			end
 	end
 
+	reg		[13:0] gma_r;
+	reg		[4:0] gra_r;
+	wire	[13:0] gma_w;
+	wire	[4:0] gra_w;
+
 	reg		[7:0] R_H_CNT;
 	reg		[6:0] R_V_CNT;
 	reg		[4:0] R_RA;
+	reg		[4:0] R_RA_C;
 	reg		[13:0] R_MA;
 	reg		R_DISPTMG;
 	wire	[7:0] NEXT_R_H_CNT;
@@ -290,56 +306,36 @@ module crtc45e #(
 	assign NEXT_R_H_CNT[7:0]=R_H_CNT[7:0]+8'h01;
 	assign NEXT_R_V_CNT[6:0]=R_V_CNT[6:0]+7'h01;
 	assign NEXT_R_RA[4:0]=R_RA[4:0]+5'b01;
-	assign W_RA_C=(R_RA==R_Nr) ? 1'b1 : 1'b0;
+	assign W_RA_C=(R_RA_C==R_Nr) ? 1'b1 : 1'b0;
 
-	assign O_RA=R_RA;
-	assign O_MA=R_MA;
+	assign gma[13:0]=gma_r[13:0];
+	assign gra[4:0]=gra_r[4:0];
+
+	assign O_RA[4:0]=R_RA[4:0];
+	assign O_MA[13:0]=R_MA[13:0];
 
 	reg		[13:0] R_MA_C;
-
-	wire	hsav;
-	wire	heav;
-	wire	hdisp;
-	wire	hblank;
-	wire	vsav;
-	wire	veav;
-	wire	vdisp;
-	wire	vblank;
 
 	reg		R_H_DISP;
 	reg		R_V_DISP;
 	wire	W_HDISP_clr;
 	wire	W_VDISP_clr;
 
+	reg		EX_WHDISP_r;
+	wire	EX_WHDISP_w;
+
 	assign W_HDISP_clr=(NEXT_R_H_CNT[7:0]==R_Nhd[7:0]) ? 1'b1 : 1'b0;
 	assign W_VDISP_clr=(NEXT_R_V_CNT[6:0]==R_Nvd[6:0]) & (W_RA_C==1'b1) ? 1'b1 : 1'b0;
-
-	assign hsav=EX_HSAV;
-	assign heav=EX_HEAV;
-	assign hdisp=EX_HDISP;
-	assign hblank=!EX_HDISP;
-	assign vsav=EX_VSAV;
-	assign veav=EX_VEAV;
-	assign vdisp=EX_VDISP;
-	assign vblank=!EX_VDISP;
 
 	wire	[13:0] R_MA_w;
 	wire	[13:0] R_MA_C_w;
 	wire	[7:0] R_H_CNT_w;
 	wire	R_H_SYNC_w;
 	wire	[4:0] R_RA_w;
+	wire	[4:0] R_RA_C_w;
 	wire	R_V_SYNC_w;
 	wire	[6:0] R_V_CNT_w;
 	wire	R_DISPTMG_w;
-
-
-//	assign tp_hsav=hsav;
-//	assign tp_heav=heav;
-//	assign tp_vsav=vsav;
-//	assign tp_veav=veav;
-//	assign tp_exhs=1'b0;//ex_hsync_req;
-//	assign tp_exvs=1'b0;//ex_vsync_req;
-//	assign tp_ras=W_RA_C;
 
 	assign O_H_SYNC=!R_H_DISP;
 	assign O_V_SYNC=!R_V_DISP;
@@ -349,10 +345,14 @@ module crtc45e #(
 	begin
 		if(v_rst_n==1'b0)
 			begin
+				EX_WHDISP_r <= 1'b0;
+				gra_r[4:0] <= 5'b0;
+				gma_r[13:0] <= 14'b0;
 				R_MA   <= 14'h0000;
 				R_MA_C <= 14'h0000;
 				R_H_CNT <= 8'h00; 
 				R_RA <= 5'h00; 
+				R_RA_C <= 5'h00; 
 				R_V_CNT <= 7'h00; 
 				R_H_DISP <= 1'b0;
 				R_V_DISP <= 1'b0;
@@ -360,16 +360,37 @@ module crtc45e #(
 			end
 		else
 			begin
+				EX_WHDISP_r <= EX_WHDISP_w;
+				gra_r[4:0] <= gra_w[4:0];
+				gma_r[13:0] <= gma_w[13:0];
 				R_MA <= R_MA_w;
 				R_MA_C <= R_MA_C_w;
 				R_H_CNT <= R_H_CNT_w;
 				R_H_DISP <= R_H_DISP_w;
 				R_V_DISP <= R_V_DISP_w;
 				R_RA <= R_RA_w;
+				R_RA_C <= R_RA_C_w;
 				R_V_CNT <= R_V_CNT_w;
 				R_DISPTMG <= R_DISPTMG_w;
 			end
 	end
+
+	assign EX_WHDISP_w=
+			(EX_HSAV==1'b1) ? 1'b1 :
+			(EX_HSAV==1'b0) & (EX_HEAV==1'b1) ? 1'b0 :
+			EX_WHDISP_r;
+
+	assign gma_w[13:0]=
+			(vsav==1'b1) ? R_Msa :
+			(vsav==1'b0) & (hbp==1'b1) ? R_MA_C :
+			(vsav==1'b0) & (hbp==1'b0) ? gma_r[13:0] :
+			gma_r[13:0];
+
+	assign gra_w[4:0]=
+			(vsav==1'b1) ? 5'b0 :
+			(vsav==1'b0) & (hbp==1'b1) ? R_RA_C :
+			(vsav==1'b0) & (hbp==1'b0) ? gra_r :
+			gra_r;
 
 	assign R_MA_w=
 			(vsav==1'b1) ? R_Msa :
@@ -396,11 +417,17 @@ module crtc45e #(
 
 	assign R_RA_w=
 			(vsav==1'b1) ? 5'b0 :
+			(vsav==1'b0) & (hsav==1'b1) ? R_RA_C :
+			(vsav==1'b0) & (hsav==1'b0) ? R_RA :
+			R_RA;
+
+	assign R_RA_C_w=
+			(vsav==1'b1) ? 5'b0 :
 			(vsav==1'b0) & (EX_VC==1'b1) & (heav==1'b1) & (W_RA_C==1'b1) ? 5'b0 :
 			(vsav==1'b0) & (EX_VC==1'b1) & (heav==1'b1) & (W_RA_C==1'b0) ? NEXT_R_RA :
-			(vsav==1'b0) & (EX_VC==1'b1) & (heav==1'b0) ? R_RA :
-			(vsav==1'b0) & (EX_VC==1'b0) ? R_RA :
-			R_RA;
+			(vsav==1'b0) & (EX_VC==1'b1) & (heav==1'b0) ? R_RA_C :
+			(vsav==1'b0) & (EX_VC==1'b0) ? R_RA_C :
+			R_RA_C;
 
 	assign R_V_CNT_w=
 			(vsav==1'b1) ? 7'b0 :

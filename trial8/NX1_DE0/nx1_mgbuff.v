@@ -85,7 +85,8 @@ module nx1_mgbuff #(
 	assign p0_cmd_req=p0_cmd_req_r[2];
 	assign p0_cmd_read=p0_cmd_req_r[1];
 
-	always @(negedge p0_cmd_clk or negedge mem_rst_n)
+//	always @(negedge p0_cmd_clk or negedge mem_rst_n)
+	always @(posedge p0_cmd_clk or negedge mem_rst_n)
 	begin
 		if (mem_rst_n==1'b0)
 			begin
@@ -219,7 +220,8 @@ endgenerate
 	assign mem0_cmd_bl[5:0]=p0_cmd_bl_r[5:0];
 	assign mem0_cmd_byte_addr[29:0]=p0_cmd_byte_addr_r[29:0];
 
-	always @(negedge mem_clk or negedge mem_rst_n)
+//	always @(negedge mem_clk or negedge mem_rst_n)
+	always @(posedge mem_clk or negedge mem_rst_n)
 	begin
 		if (mem_rst_n==1'b0)
 			begin
@@ -374,7 +376,8 @@ endgenerate
 	wire	mem0_rbuff_waddr_req_w;
 	wire	[6:0] mem0_rbuff_waddr_point_w;
 
-	always @(negedge mem_clk or negedge mem_rst_n)
+//	always @(negedge mem_clk or negedge mem_rst_n)
+	always @(posedge mem_clk or negedge mem_rst_n)
 	begin
 		if (mem_rst_n==1'b0)
 			begin
@@ -424,7 +427,8 @@ endgenerate
 	wire	[3:0] mem0_p0_rd_buff_ack_w;
 	wire	mem0_p0_rd_buff_req_w;
 
-	always @(negedge p0_rd_clk or negedge mem_rst_n)
+//	always @(negedge p0_rd_clk or negedge mem_rst_n)
+	always @(posedge p0_rd_clk or negedge mem_rst_n)
 	begin
 		if (mem_rst_n==1'b0)
 			begin
@@ -494,7 +498,7 @@ xil_blk_mem_gen_v7_2_dp36x64 p0_rd_buff(
 	.dina({4'b0,mem0_rbuff_wdata[31:0]}),
 	.clkb(p0_rd_clk),
 	.enb(1'b1),
-	.addrb(mem0_p0_rd_addr_r[5:0]),
+	.addrb(mem0_p0_rd_addr_w[5:0]),
 	.doutb(buff_rd_data[35:0])
 );
 
@@ -511,7 +515,7 @@ begin
 
 alt_altsyncram_c3dp36x64 p0_rd_buff(
 	.data({4'b0,mem0_rbuff_wdata[31:0]}),
-	.rdaddress(mem0_p0_rd_addr_r[5:0]),
+	.rdaddress(mem0_p0_rd_addr_w[5:0]),
 	.rdclock(p0_rd_clk),
 	.wraddress(mem0_rbuff_waddr_r[5:0]),
 	.wrclock(mem_clk),

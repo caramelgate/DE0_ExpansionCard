@@ -54,6 +54,9 @@ module nx1_top #(
 	parameter	def_BBASE=32'h00100000,	// bank memory base address
 	parameter	def_VBASE=32'h00180000	// video base address
 ) (
+	input			EX_HS,				// in    [SYNC] horizontal sync
+	input			EX_VS,				// in    [SYNC] vertical sync
+	input			EX_DE,				// in    [SYNC] disp/#blank
 	input			EX_HDISP,			// in    [SYNC] horizontal disp
 	input			EX_VDISP,			// in    [SYNC] vertical disp
 	input			EX_HBP,				// in    [SYNC] horizontal backporch
@@ -991,17 +994,20 @@ nx1_vid #(
 	.DEBUG(DEBUG)					// 
 ) nx1_vid (
 
-	.EX_HDISP(EX_HDISP),		// in    [CRT] horizontal disp
-	.EX_VDISP(EX_VDISP),		// in    [CRT] vertical disp
+	.EX_HS(EX_HS),				// in    [SYNC] horizontal sync
+	.EX_VS(EX_VS),				// in    [SYNC] vertical sync
+	.EX_DE(EX_DE),				// in    [SYNC] disp/#blank
+	.EX_HDISP(EX_HDISP),		// in    [SYNC] horizontal disp
+	.EX_VDISP(EX_VDISP),		// in    [SYNC] vertical disp
 	.EX_HBP(EX_HBP),			// in    [SYNC] horizontal backporch
 	.EX_HWSAV(EX_HWSAV),		// in    [SYNC] horizontal window sav
-	.EX_HSAV(EX_HSAV),			// in    [CRT] horizontal sav
-	.EX_HEAV(EX_HEAV),			// in    [CRT] horizontal eav
-	.EX_HC(EX_HC),				// in    [CRT] horizontal countup
+	.EX_HSAV(EX_HSAV),			// in    [SYNC] horizontal sav
+	.EX_HEAV(EX_HEAV),			// in    [SYNC] horizontal eav
+	.EX_HC(EX_HC),				// in    [SYNC] horizontal countup
 	.EX_VWSAV(EX_VWSAV),		// in    [SYNC] vertical window sav
-	.EX_VSAV(EX_VSAV),			// in    [CRT] vertical sav
-	.EX_VEAV(EX_VEAV),			// in    [CRT] vertical eav
-	.EX_VC(EX_VC),				// in    [CRT] vertical countup
+	.EX_VSAV(EX_VSAV),			// in    [SYNC] vertical sav
+	.EX_VEAV(EX_VEAV),			// in    [SYNC] vertical eav
+	.EX_VC(EX_VC),				// in    [SYNC] vertical countup
 
 	.vram_clk(vram_clk),							// in    [VRAM] clk
 	.vram_init_done(vram_init_done),				// in    [VRAM] init done
@@ -1034,7 +1040,7 @@ nx1_vid #(
   .I_CG_CS(cg_cs),
   .I_PAL_CS(pal_cs),
   .I_TXT_CS(dbg_text_cs), .I_ATT_CS(attr_cs), .I_KAN_CS(ktext_cs),
-  .I_GRB_CS(gr_b_cs), .I_GRR_CS(gr_r_cs), .I_GRG_CS(gr_g_cs),
+//  .I_GRB_CS(gr_b_cs), .I_GRR_CS(gr_r_cs), .I_GRG_CS(gr_g_cs),
   .I_VCLK(EX_CLK),  .I_CLK1(clk1),
   .I_W40(width40),
   .I_HIRESO(hireso),
@@ -1054,11 +1060,21 @@ nx1_vid #(
 
 	.cg_rdata(cg_mux_dr),
 
-	.O_R(O_VGA_R)  ,
-	.O_G(O_VGA_G)   ,
-	.O_B(O_VGA_B),
-	.O_HSYNC(O_VGA_HS) ,
-	.O_VSYNC(O_VGA_VS),
+	.v_red(O_VGA_R),
+	.v_grn(O_VGA_G),
+	.v_blu(O_VGA_B),
+	.v_hs(O_VGA_HS),
+	.v_vs(O_VGA_VS),
+	.v_de(O_VGA_DE),
+	.v_whs(),
+	.v_wvs(),
+	.v_wde(),
+
+	.O_R()  ,
+	.O_G()   ,
+	.O_B(),
+	.O_HSYNC() ,
+	.O_VSYNC(),
 	.O_VDISP(vblank_n)
 );
 
