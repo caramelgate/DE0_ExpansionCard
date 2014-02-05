@@ -90,12 +90,6 @@ module crtc45e #(
 
 	input			I_W40,				// in    [crtc] 40/#80
 
-	output			QA,
-	output			QB,
-	output			QC,
-	output			QD,
-	output			QP,
-
 	output			vclk_shift,	
 	output			vclk_even,	
 
@@ -209,12 +203,6 @@ module crtc45e #(
 			(hdisp==1'b1) &  ((EX_HC==1'b1) & (vclk_div_under_r==1'b1) & (vclk_div_r[2:0]==3'b111)) ? 8'b00000001 :
 			(hdisp==1'b1) & !((EX_HC==1'b1) & (vclk_div_under_r==1'b1) & (vclk_div_r[2:0]==3'b111)) ? {vclk_div_out_r[6:0],1'b0} :
 			8'b00000001;
-
-	assign QP = 1'b0;
-	assign QA = 1'b1;
-	assign QB = 1'b0;//~vclk_div_r[0];
-	assign QC = 1'b0;//~vclk_div_r[1];
-	assign QD = 1'b0;//~vclk_div_r[2];
 
 	assign vclk_shift=(EX_HC==1'b1) & (vclk_div_under_r==1'b1) ? 1'b1 : 1'b0;
 	assign vclk_even=vclk_div_r[0];

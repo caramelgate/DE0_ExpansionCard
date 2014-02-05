@@ -13,16 +13,14 @@ module n8255 #(
 	parameter	busfree=8'hff
 ) (
 	input			CLK,		// in    [CPU] clk
+	input			CKE,		// in    [CPU] cke
 	input			RESET,		// in    [CPU] reset
 	input	[1:0]	ADDR,		// in    [CPU] addr[1:0]
-//	input			REQ,		// in    [CPU] req
-//	output			ACK,		// out   [CPU] ack/#wait
 	input			WR,			// in    [CPU] wr
 	input	[7:0]	WDATA,		// in    [CPU] cs
 	output	[7:0]	RDATA,		// in    [CPU] cs
 
 	input			CS,
-	output			WAIT_N,
 
 	output			PC5_fall,	// out   [PPI] multibank req
 	input	[7:0]	PA_IN,		// in    [PPI] na
@@ -33,14 +31,12 @@ module n8255 #(
 	output	[7:0]	PC_OUT		// out   [PPI] -- 
 );
 
-	reg		[1:0] ack_r;
 	reg		[7:0] rdata_r;
 	reg		[7:0] mode_r;
 	reg		[7:0] porta_r;
 	reg		[7:0] portb_r;
 	reg		[7:0] portc_r;
 	reg		[1:0] portc5_r;
-	wire	[1:0] ack_w;
 	wire	[7:0] rdata_w;
 	wire	[7:0] mode_w;
 	wire	[7:0] porta_w;
@@ -50,7 +46,6 @@ module n8255 #(
 
 	wire	wr_req;
 
-	assign WAIT_N=(CS==1'b1) ? ack_r[0] : 1'b1;
 	assign RDATA[7:0]=rdata_r[7:0];
 
 	assign PA_OUT[7:0]=porta_r[7:0];
@@ -63,7 +58,6 @@ module n8255 #(
 	begin
 		if (RESET==1'b1)
 			begin
-				ack_r[1:0] <= 2'b0;
 				rdata_r[7:0] <= busfree[7:0];
 				mode_r[7:0] <= 8'b0;
 				porta_r[7:0] <= 8'hff;
@@ -73,7 +67,6 @@ module n8255 #(
 			end
 		else
 			begin
-				ack_r[1:0] <= ack_w[1:0];
 				rdata_r[7:0] <= rdata_w[7:0];
 				mode_r[7:0] <= mode_w[7:0];
 				porta_r[7:0] <= porta_w[7:0];
@@ -83,10 +76,7 @@ module n8255 #(
 			end
 	end
 
-	assign ack_w[0]=(CS==1'b1) ? 1'b1 : 1'b0;
-	assign ack_w[1]=ack_r[0];
-
-	assign wr_req=(ack_r[1:0]==2'b01) & (WR==1'b1) ? 1'b1 : 1'b0;
+	assign wr_req=(CS==1'b1) & (CKE==1'b1) & (WR==1'b1) ? 1'b1 : 1'b0;
 
 	assign rdata_w[7:0]=
 			(CS==1'b0) ? busfree[7:0] :

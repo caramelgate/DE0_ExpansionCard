@@ -9,12 +9,14 @@
 //  2014/jan/01 release 0.0a de0(cyclone3)
 //       jan/10 release 0.1  preview
 //       jan/17 release 0.1a +FDC
+//       jan/27 release 0.1b replace VID
+//       feb/03 release 0.1c replace mode(+memory interface)
 //
 //------------------------------------------------------------------------------
 
 module nx1_de0ec8 #(
 	parameter	def_DEVICE=1,			// 1=altera
-	parameter	def_sram=0,				// main memory sdr / syncram
+	parameter	def_work_sram=1,		// main memory sdr / syncram
 	parameter	def_reso=2,				// screen resoluton 0=800x480 / 1=1024x600 / 2=1024x768
 	parameter	def_use_ipl=1,			// fast simulation : ipl skip
 	parameter	def_fdd_flash=0,		// flash fdd image
@@ -249,28 +251,10 @@ module nx1_de0ec8 #(
 	wire	clk64M;
 	wire	clk128M;
 	wire	CLK50D;
+	wire	CLK64D;
 
 	assign clk50M=CLOCK_50;
 	assign clk24M=CLOCK_50;//CLK24;
-
-	wire	[3:0] sbank;
-	wire	[15:0] sa;
-	wire	[7:0] sram_dr;
-	wire	[7:0] cbus_wdata;
-	wire	srd_n;
-	wire	swr_n;
-	wire	ipl_cs;
-	wire	mram_cs;
-	wire	gr_b_cs;
-	wire	gr_r_cs;
-	wire	gr_g_cs;
-	wire	gram_wp;
-	wire	gram_rp;
-
-//	wire	[13:0] vaddr;
-//	wire	[7:0] grb_dr;
-//	wire	[7:0] grr_dr;
-//	wire	[7:0] grg_dr;
 
 	wire	ext_reset;
 	wire	ext_nmi;
@@ -328,19 +312,14 @@ module nx1_de0ec8 #(
 	wire	crtc_vs;
 	wire	crtc_de;
 
-	wire	[7:0] sdr_rdata;
-	wire	[7:0] mem_rdata;
-	wire	wait_n;
-	wire	sdr_cs;
-	wire	mem_cs;
 	wire	[15:0] z_addr;
 	wire	[7:0] z_dbg_rdata;
+	wire	[7:0] z_wdata;
 	wire	z_mreq;
+	wire	z_wait;
 	wire	z_ioreq;
 	wire	z_wr;
 	wire	z_rd;
-	wire	[3:0] z_vplane;
-	wire	z_multiplane;
 
 //	assign VGA_R[3:0]=(blank_n==1'b0) ? 4'b0 : v_red[7:4];
 //	assign VGA_G[3:0]=(blank_n==1'b0) ? 4'b0 : v_grn[7:4];
@@ -348,18 +327,18 @@ module nx1_de0ec8 #(
 //	assign VGA_HS=hsync_n;
 //	assign VGA_VS=vsync_n;
 
-	assign VGA_R[3:0]=
-			(DEBUG==0) & (v_de==1'b1) ? v_red[7:4] :
-			(DEBUG==1) & (v_de==1'b1) ? {v_red[7:6],z_mreq,1'b0} :
-			4'b0;
-	assign VGA_G[3:0]=
-			(DEBUG==0) & (v_de==1'b1) ? v_grn[7:4] :
-			(DEBUG==1) & (v_de==1'b1) ? {v_grn[7:6],!wait_n,1'b0} :
-			4'b0;
-	assign VGA_B[3:0]=
-			(DEBUG==0) & (v_de==1'b1) ? v_blu[7:4] :
-			(DEBUG==1) & (v_de==1'b1) ? {v_blu[7:6],z_ioreq,1'b0} :
-			4'b0;
+	assign VGA_R[3:0]=v_red[7:4];
+		//	(DEBUG==0) & (v_de==1'b1) ? v_red[7:4] :
+		//	(DEBUG==1) & (v_de==1'b1) ? {v_red[7:6],z_mreq,1'b0} :
+		//	4'b0;
+	assign VGA_G[3:0]=v_grn[7:4];
+		//	(DEBUG==0) & (v_de==1'b1) ? v_grn[7:4] :
+		//	(DEBUG==1) & (v_de==1'b1) ? {v_grn[7:6],z_wait,1'b0} :
+		//	4'b0;
+	assign VGA_B[3:0]=v_blu[7:4];
+		//	(DEBUG==0) & (v_de==1'b1) ? v_blu[7:4] :
+		//	(DEBUG==1) & (v_de==1'b1) ? {v_blu[7:6],z_ioreq,1'b0} :
+		//	4'b0;
 	assign VGA_HS=v_hsync;
 	assign VGA_VS=v_vsync;
 
@@ -386,17 +365,18 @@ begin
 
 //	assign CLK50D=!CLOCK_50;
 	assign CLK50D=1'b0;
+	assign CLK64D=!CLOCK_50;
 
 end
 	else
 begin
 
-alt_altpll_50x32x64x128 clkgen1(
+alt_altpll_50x64x64Dx32 clkgen1(
 	.areset(ext_reset),
 	.inclk0(CLOCK_50),
-	.c0(clk32M),
-	.c1(clk64M),
-	.c2(clk128M),
+	.c0(clk64M),
+	.c1(CLK64D),
+	.c2(clk32M),
 	.locked(lock32M)
 );
 
@@ -764,8 +744,9 @@ endgenerate
 
 	assign sys_clk=clk32M;	// 
 //	assign mem_clk=clk64M;
-	assign mem_clk1=CLK50D;
+//	assign mem_clk1=CLK64D;
 	assign mem_clk=CLOCK_50;	// sdr clock
+	assign mem_clk1=!CLOCK_50;	// sdr clock
 	assign mem_rst_n=!sys_reset;
 
 	assign DRAM_DQ[15:0]=(DRAM_OE==1'b1) ? DRAM_WDATA[15:0] : 16'hzzzz;
@@ -805,7 +786,7 @@ nx1_mgsdr #(
 	.mem_rd_master(mem_rd_master[2:0]),				// out   [MEM] rd master[2:0]
 
 	.mem_init_done(MEM_INIT_DONE),	// out   [SYS] init_done
-//	.mem_clk1(mem_clk1),			// in    [SYS] clk +90deg
+	.mem_clk1(mem_clk1),			// in    [SYS] clk +90deg
 	.mem_clk(mem_clk),				// in    [SYS] clk 54MHz
 	.mem_rst_n(mem_rst_n)			// in    [SYS] #reset
 );
@@ -973,111 +954,40 @@ nx1_mgarb #(
 	assign p3_rd_en=1'b0;
 
 
-	assign sdr_cs=(def_sram==0) & (mram_cs==1'b1) ? 1'b1 : 1'b0;
-	assign mem_cs=(def_sram==1) & (mram_cs==1'b1) ? 1'b1 : 1'b0;
-
 	assign p0_cmd_clk=sys_clk;
 	assign p0_wr_clk=sys_clk;
 	assign p0_rd_clk=sys_clk;
 
-nx1_zbank #(
-	.def_MBASE(def_MBASE),	// main memory base address
-	.def_BBASE(def_BBASE),	// bank memory base address
-	.def_VBASE(def_VBASE)	// video base address
-) zbank (
-	.mem_cmd_en(p0_cmd_en),							// out   [MEM] cmd en
-	.mem_cmd_instr(p0_cmd_instr[2:0]),				// out   [MEM] cmd inst[2:0]
-	.mem_cmd_bl(p0_cmd_bl[5:0]),					// out   [MEM] cmd blen[5:0]
-	.mem_cmd_byte_addr(p0_cmd_byte_addr[29:0]),		// out   [MEM] cmd addr[29:0]
-	.mem_cmd_empty(p0_cmd_empty),					// in    [MEM] cmd empt
-	.mem_cmd_full(p0_cmd_full),						// in    [MEM] cmd full
-	.mem_wr_en(p0_wr_en),							// out   [MEM] wr en
-	.mem_wr_mask(p0_wr_mask[3:0]),					// out   [MEM] wr mask[3:0]
-	.mem_wr_data(p0_wr_data[31:0]),					// out   [MEM] wr wdata[31:0]
-	.mem_wr_full(p0_wr_full),						// in    [MEM] wr full
-	.mem_wr_empty(p0_wr_empty),						// in    [MEM] wr empt
-	.mem_wr_count(p0_wr_count[6:0]),				// in    [MEM] wr count[6:0]
-	.mem_wr_underrun(p0_wr_underrun),				// in    [MEM] wr over
-	.mem_wr_error(p0_wr_error),						// in    [MEM] wr err
-	.mem_rd_en(p0_rd_en),							// out   [MEM] rd en
-	.mem_rd_data(p0_rd_data[31:0]),					// in    [MEM] rd rdata[31:0]
-	.mem_rd_full(p0_rd_full),						// in    [MEM] rd full
-	.mem_rd_empty(p0_rd_empty),						// in    [MEM] rd empt
-	.mem_rd_count(p0_rd_count[6:0]),				// in    [MEM] rd count[6:0]
-	.mem_rd_overflow(p0_rd_overflow),				// in    [MEM] rd over
-	.mem_rd_error(p0_rd_error),						// in    [MEM] rd err
-
-	.mem_init_done(MEM_INIT_DONE),		// in    [MEM] init_done
-	.mem_clk(sys_clk),					// in    [MEM] clk
-	.mem_rst_n(!sys_reset),				// in    [MEM] #reset
-
-	.z_wait_n(wait_n),
-	.z_czbank({2'b10,sbank[3:0]}),
-	.z_addr(sa[15:0]),
-	.z_wdata(cbus_wdata[7:0]),
-	.z_rdata(sdr_rdata[7:0]),
-	.z_rd(~srd_n),
-	.z_wr(~swr_n),
-	.z_mreq(sdr_cs),
-	.z_ioreq(z_ioreq),
-	.z_vplane(z_vplane[3:0]),//{gr_g_cs,gr_r_cs,gr_b_cs,1'b0}),
-	.z_multiplane(z_multiplane)
-/*
-	.z_ipl(z_ipl),				// out
-	.z_addr(z_addr[15:0]),		// out
-	.z_czbank(z_czbank[5:0]),	// out
-	.z_mreq(z_mreq),			// out
-	.z_ioreq(z_ioreq),			// out
-	.z_rd(z_rd),				// out
-	.z_wr(z_wr),				// out
-	.z_wait(z_wait),			// in
-	.z_fastcyc(z_fastcyc),		// in
-	.z_vplane(z_vplane[3:0]),	// out
-	.z_czvbank(z_czvbznk[3:0]),	// out
-	.z_czvbank(z_czvbznk[3:0]),	// out
-*/
-);
-
-generate
-	if (def_sram==1)
-begin
-
-alt_altsyncram_c3dp8x16k dpram8x16k(
-	.data(cbus_wdata),
-	.rdaddress(sa[13:0]),
-	.rdclock(sys_clk),
-	.wraddress(sa[13:0]),
-	.wrclock(sys_clk),
-	.wren(mem_cs & !swr_n),
-	.q(mem_rdata[7:0])
-);
-
-end
-	else
-begin
-
-	assign mem_rdata[7:0]=8'b0;
-
-end
-endgenerate
-
-	wire	[7:0] ipl_rdata;
-
-alt_altsyncram_rom8x4k rom_ipl(
-	.address(sa[11:0]),
-	.clock(sys_clk),
-	.q(ipl_rdata[7:0])
-);
-
-	assign sram_dr[7:0]=
-			(def_sram==1) & (ipl_cs==1'b1) ? ipl_rdata[7:0] :
-			(def_sram==1) & (ipl_cs==1'b0) ? mem_rdata[7:0] :
-			(def_sram==0) & (ipl_cs==1'b1) ? ipl_rdata[7:0] :
-			(def_sram==0) & (ipl_cs==1'b0) ? sdr_rdata[7:0] :
-			sdr_rdata[7:0];
-
 	assign p4_cmd_clk=sys_clk;
 	assign p4_rd_clk=sys_clk;
+
+	wire	[15:0] ipl_addr;
+	wire	[7:0] ipl_rdata;
+	wire	[7:0] ipl_wdata;
+	wire	ipl_req;
+	wire	ipl_wr;
+
+	wire	[7:0] ipl_rdata0;
+	wire	[7:0] ipl_rdata1;
+
+	assign ipl_rdata[7:0]=(ipl_addr[15]==1'b0) ? ipl_rdata0[7:0] : ipl_rdata1[7:0];
+
+alt_altsyncram_rom8x4k rom_ipl(
+	.address(ipl_addr[11:0]),
+	.clock(sys_clk),
+	.q(ipl_rdata0[7:0])
+);
+
+
+alt_altsyncram_c3dp8x16k dpram8x16k(
+	.data(ipl_wdata[7:0]),
+	.rdaddress(ipl_addr[13:0]),
+	.rdclock(sys_clk),
+	.wraddress(ipl_addr[13:0]),
+	.wrclock(sys_clk),
+	.wren(ipl_req & ipl_wr),
+	.q(ipl_rdata1[7:0])
+);
 
 	wire	[19:0] faddr;
 	wire	frd;
@@ -1141,6 +1051,8 @@ alt_altsyncram_rom8x16k fdd(
 			16'he5e5;
 */
 
+	// ---- fdd simulation message ----
+
 	reg		rd_r;
 	reg		[7:0] rdata_r;
 	reg		wr_r;
@@ -1157,10 +1069,10 @@ alt_altsyncram_rom8x16k fdd(
 			end
 		else
 			begin
-				rd_r <= !srd_n;
+				rd_r <= z_rd;
 				rdata_r[7:0] <= z_dbg_rdata[7:0];
-				wr_r <= !swr_n;
-				wdata_r[7:0] <= cbus_wdata[7:0];
+				wr_r <= z_wr;
+				wdata_r[7:0] <= z_wdata[7:0];
 			end
 	end
 
@@ -1202,6 +1114,7 @@ endgenerate
 
 nx1_top #(
 	.def_DEVICE(def_DEVICE),			// 0=Xilinx , 1=Altera
+	.def_work_sram(def_work_sram),		// main memory sdr / syncram
 	.def_X1TURBO(0),					// 0=X1 , 1=X1turbo (subset yet) , 2=X1TURBOZ (future...)
 //	.def_EXTEND_BIOS(def_EXTEND_BIOS),	// extend BIOS MENU & NoICE-Z80 resource-free monitor
 	.def_use_ipl(def_use_ipl),			// fast simulation : ipl skip
@@ -1226,7 +1139,7 @@ nx1_top #(
 	.EX_VEAV(EX_VEAV),			// in    [SYNC] vertical eav
 	.EX_VC(EX_VC),				// in    [SYNC] vertical countup
 	.EX_CLK(EX_CLK),			// in    [SYNC] video clock
-/*
+
 	.mem_cmd_en(p0_cmd_en),							// out   [MEM] cmd en
 	.mem_cmd_instr(p0_cmd_instr[2:0]),				// out   [MEM] cmd inst[2:0]
 	.mem_cmd_bl(p0_cmd_bl[5:0]),					// out   [MEM] cmd blen[5:0]
@@ -1248,7 +1161,7 @@ nx1_top #(
 	.mem_rd_count(p0_rd_count[6:0]),				// in    [MEM] rd count[6:0]
 	.mem_rd_overflow(p0_rd_overflow),				// in    [MEM] rd over
 	.mem_rd_error(p0_rd_error),						// in    [MEM] rd err
-*/
+
 	.vram_clk(p4_cmd_clk),							// in    [VRAM] clk
 	.vram_init_done(MEM_INIT_DONE),					// in    [VRAM] init done
 	.vram_cmd_en(p4_cmd_en),						// out   [VRAM] cmd en
@@ -1265,17 +1178,20 @@ nx1_top #(
 	.vram_rd_overflow(p4_rd_overflow),				// in    [VRAM] rd over
 	.vram_rd_error(p4_rd_error),					// in    [VRAM] rd err
 
-//	.z_wait(z_wait),			// in
-//	.z_fastcyc(z_fastcyc),		// in
+	.ipl_addr(ipl_addr[15:0]),
+	.ipl_rdata(ipl_rdata[7:0]),
+	.ipl_wdata(ipl_wdata[7:0]),
+	.ipl_wr(ipl_wr),
+	.ipl_req(ipl_req),
+	.ipl_ack(ipl_req),
 
-	.z_addr(z_addr[15:0]),			// out
-	.z_dbg_rdata(z_dbg_rdata[7:0]),			// out
-	.z_mreq(z_mreq),				// out
-	.z_ioreq(z_ioreq),				// out
-	.z_wr(z_wr),					// out
-	.z_rd(z_rd),					// out
-	.z_vplane(z_vplane[3:0]),		// out
-	.z_multiplane(z_multiplane),	// out
+	.z_dbg_addr(z_addr[15:0]),			// out dbg
+	.z_dbg_rdata(z_dbg_rdata[7:0]),		// out dbg
+	.z_dbg_wdata(z_wdata[7:0]),			// out dbg
+	.z_mreq(z_mreq),					// out dbg
+	.z_ioreq(z_ioreq),					// out dbg
+	.z_wr(z_wr),						// out dbg
+	.z_rd(z_rd),						// out dbg
 
 	.faddr(faddr[19:0]),			// out   [FDD] flash addr
 	.frd(frd),						// out   [FDD] flash oe
@@ -1283,23 +1199,11 @@ nx1_top #(
 
 	.I_RESET(sys_reset),
 	.I_CLK32M(sys_clk),
-	.O_CBUS_BANK(sbank),
-	.O_CBUS_ADDRESS(sa),
-	.O_CBUS_DATA(cbus_wdata),
-	.I_CBUS_DATA(sram_dr),
-	.O_CBUS_RD_n(srd_n),
-	.O_CBUS_WR_n(swr_n),
-	.I_CBUS_WAIT_n(wait_n),//1'b1),
-	.O_CBUS_CS_IPL(ipl_cs),
-	.O_CBUS_CS_MRAM(mram_cs),
-	.O_CBUS_CS_GRAMB(gr_b_cs),
-	.O_CBUS_CS_GRAMR(gr_r_cs),
-	.O_CBUS_CS_GRAMG(gr_g_cs),
-	.O_CBUS_BANK_GRAM_R(gram_rp),
-	.O_CBUS_BANK_GRAM_W(gram_wp),
+
 	.O_XCF_CCLK(),
 	.O_XCF_RESET(),
 	.I_XCF_DIN(1'b0),
+
 	.I_PS2_CLK(PS2_KBCLK),
 	.I_PS2_DAT(PS2_KBDAT),
 	.O_PS2_CLK_T(ps2_clk_t),

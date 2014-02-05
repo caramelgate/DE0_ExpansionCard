@@ -8,6 +8,8 @@
 //  2013/nov/28 release 0.0  modifyed and downgrade for de1(altera cyclone2)
 //  2014/jan/10 release 0.1  preview
 //       jan/17 release 0.1a +FDC
+//       jan/27 release 0.1b replace VID
+//       feb/03 release 0.1c replace mode(+memory interface)
 //
 //------------------------------------------------------------------------------
 
@@ -44,6 +46,7 @@
 
 module nx1_top #(
 	parameter	def_DEVICE=0,			// 0=Xilinx , 1=Altera
+	parameter	def_work_sram=0,		// main memory sdr / syncram
 	parameter	def_X1TURBO=0,			// 0=X1 , 1=X1turbo (subset yet) , 2=X1TURBOZ (future...)
 	parameter	def_FM_BOARD=0,			// YM2151 FM sound board (not supported yet)
 //	parameter	def_EXTEND_BIOS=0,		// extend BIOS MENU & NoICE-Z80 resource-free monitor
@@ -70,6 +73,28 @@ module nx1_top #(
 	input			EX_VC,				// in    [SYNC] vertical countup
 	input			EX_CLK,				// in    [SYNC] video clock
 
+	output			mem_cmd_en,			// out   [MEM] cmd en
+	output	[2:0]	mem_cmd_instr,		// out   [MEM] cmd inst[2:0]
+	output	[5:0]	mem_cmd_bl,			// out   [MEM] cmd blen[5:0]
+	output	[29:0]	mem_cmd_byte_addr,	// out   [MEM] cmd addr[29:0]
+	input			mem_cmd_empty,		// in    [MEM] cmd empt
+	input			mem_cmd_full,		// in    [MEM] cmd full
+	output			mem_wr_en,			// out   [MEM] wr en
+	output	[3:0]	mem_wr_mask,		// out   [MEM] wr mask[3:0]
+	output	[31:0]	mem_wr_data,		// out   [MEM] wr wdata[31:0]
+	input			mem_wr_full,		// in    [MEM] wr full
+	input			mem_wr_empty,		// in    [MEM] wr empt
+	input	[6:0]	mem_wr_count,		// in    [MEM] wr count[6:0]
+	input			mem_wr_underrun,	// in    [MEM] wr over
+	input			mem_wr_error,		// in    [MEM] wr err
+	output			mem_rd_en,			// out   [MEM] rd en
+	input	[31:0]	mem_rd_data,		// in    [MEM] rd rdata[31:0]
+	input			mem_rd_full,		// in    [MEM] rd full
+	input			mem_rd_empty,		// in    [MEM] rd empt
+	input	[6:0]	mem_rd_count,		// in    [MEM] rd count[6:0]
+	input			mem_rd_overflow,	// in    [MEM] rd over
+	input			mem_rd_error,		// in    [MEM] rd err
+
 	input			vram_clk,			// in    [VRAM] clk
 	input			vram_init_done,		// in    [VRAM] init done
 	output			vram_cmd_en,		// out   [VRAM] cmd en
@@ -86,36 +111,54 @@ module nx1_top #(
 	input			vram_rd_overflow,	// in    [VRAM] rd over
 	input			vram_rd_error,		// in    [VRAM] rd err
 
-	output	[15:0]	z_addr,				// out   [CPU] addr
-	output	[7:0]	z_dbg_rdata,		// out   [CPU] debug : read data
-	output			z_mreq,				// out   [CPU] #mreq
-	output			z_ioreq,			// out   [CPU] #ioreq
-	output			z_wr,				// out   [CPU] #wr
-	output			z_rd,				// out   [CPU] #rd
-	output	[3:0]	z_vplane,			// out   [CPU] vram plane select
-	output			z_multiplane,		// out   [CPU] vram multiplane write
+	output	[15:0]	ipl_addr,			// out   [CPU] ipl rom address
+	input	[7:0]	ipl_rdata,			// in    [CPU] ipl read data
+	output	[7:0]	ipl_wdata,			// out   [CPU] dbg : ipl write data
+	output			ipl_wr,				// out   [CPU] dbg : ipl write 
+	output			ipl_req,			// out   [CPU] ipl req
+	input			ipl_ack,			// in    [CPU] ipl ack
+
+	output	[15:0]	z_dbg_addr,			// out   [dbg] addr
+	output	[7:0]	z_dbg_rdata,		// out   [dbg] debug : read data
+	output	[7:0]	z_dbg_wdata,		// out   [dbg] debug : read data
+	output			z_mreq,				// out   [dbg] #mreq
+	output			z_ioreq,			// out   [dbg] #ioreq
+	output			z_wr,				// out   [dbg] #wr
+	output			z_rd,				// out   [dbg] #rd
 
 	output	[19:0]	faddr,				// out   [FDD] flash addr
 	output			frd,				// out   [FDD] flash oe
 	input	[15:0]	frdata,				// in    [FDD] flash read data
 
+//	output	[15:0]	slot1_addr,			// out   [SLOT1] address
+//	output	[7:0]	slot1_wdata,		// out   [SLOT1] wr dara out
+//	input	[7:0]	slot1_rdata,		// in    [SLOT1] rd data in
+//	output			slot1_mreq_n,		// out   [SLOT1] NA : #mreq=High
+//	output			slot1_iorq_n,		// out   [SLOT1] #ioreq
+//	output			slot1_rd_n,			// out   [SLOT1] #rd
+//	output			slot1_wr_n,			// out   [SLOT1] #wr
+//	output			slot1_m1_n,			// out   [SLOT1] #m1
+//	output			slot1_halt_n,		// out   [SLOT1] NA : #halt=High
+//	output			slot1_clk,			// out   [SLOT1] clk (=4MHz)
+//	output			slot1_cke,			// out   [SLOT1] cke (=4MHz)
+//	output			slot1_exio,			// out   [SLOT1] cycle active
+//	input			slot1_exint_n,		// in    [SLOT1] #exint
+//	input			slot1_exwait_n,		// in    [SLOT1] #exwait
+//	input			slot1_nmi_n,		// in    [SLOT1] #nmi
+//	input			slot1_iei,			// in    [SLOT1] iei
+//	output			slot1_ieo,			// out   [SLOT1] ieo
+//	input			slot1_valid,		// in    [SLOT1] rd data valid
+//	output			slot1_reti,			// out   [SLOT1] z80 reti cycle
+//	output			slot1_vect,			// out   [SLOT1] z80 m1-vect cycle
+//	output			slot1_clk2,			// out   [SLOT1] clk2 (=2MHz)
+//	output			slot1_cke2,			// out   [SLOT1] cke2 (=4MHz)
+//	output			slot1_sysclk,		// out   [SLOT1] sysclk (=32MHz)
+//	output			slot1_sysckp,		// out   [SLOT1] sysckp (=32MHz)
+//	output			slot1_sysckn,		// out   [SLOT1] sysckn (=32MHz)
+//	output			slot1_reset_n		// out   [SLOT1] #reset
+
 	input			I_RESET,			// in    [sys] reset
 	input			I_CLK32M,			// in    [sys] clk 32MHz(33MHz)
-
-	output	[3:0]	O_CBUS_BANK,		// out   [cpu] upper bank address,for FD image access
-	output	[15:0]	O_CBUS_ADDRESS,		// out   [cpu] addr
-	output	[7:0]	O_CBUS_DATA,		// out   [cpu] wdata
-	input	[7:0]	I_CBUS_DATA,		// in    [cpu] rdata
-	output			O_CBUS_RD_n,		// out   [cpu] #rd
-	output			O_CBUS_WR_n,		// out   [cpu] #wr
-	input			I_CBUS_WAIT_n,		// in    [cpu] ready/#wait
-	output			O_CBUS_CS_IPL,		// out   [cpu] ipl select
-	output			O_CBUS_CS_MRAM,		// out   [cpu] 
-	output			O_CBUS_CS_GRAMB,	// out   [cpu]
-	output			O_CBUS_CS_GRAMR,	// out   [cpu]
-	output			O_CBUS_CS_GRAMG,	// out   [cpu]
-	output			O_CBUS_BANK_GRAM_R,	// out   [cpu]
-	output			O_CBUS_BANK_GRAM_W,	// out   [cpu]
 
 	input	 		I_PS2_CLK,			// in    [sub] ps2 kbd-clk
 	input	 		I_PS2_DAT,			// in    [sub] ps2 kbd-dat
@@ -184,208 +227,178 @@ module nx1_top #(
 /****************************************************************************
   button / switch function
 ****************************************************************************/
-wire ext_8mhz    = 1'b0;
 
 //wire ext_ipl_kill  = 1'b0;
 wire ext_trap_en   = 1'b0; // NMI break & boot No-ICE Monitor
-//`ifdef X1TURBO
 wire defchr_enable = (def_X1TURBO==0) ? 1'b1 : ~I_DEFCHR_SW;
-//`else
-//wire defchr_enable = 1'b1;
-//`endif
 
 /****************************************************************************
   clock generator
 ****************************************************************************/
-wire clk_reset = I_RESET;
-
-wire clk32M    = I_CLK32M;
 
 /****************************************************************************
   basic clock divider
 ****************************************************************************/
 
-	reg [3:0] pris32m;
-
-	always @(posedge clk32M or posedge clk_reset)
-	begin
-		if(clk_reset)
-			begin
-				pris32m <= 4'b0000;
-			end
-		else
-			begin
-				pris32m  <= pris32m + 1;
-			end
-	end
-
-	wire	cpu_clk_rize;
-	wire	cpu_clk_fall;
-	wire	cpu_clk;
-	wire	clk2M;
-
-	reg		[3:0] clk_div_r;
-	reg		[3:0] cpu_clk_div_r;
-	reg		cpu_clk_r;
-	reg		cpu_clk_rize_r;
-	reg		cpu_clk_fall_r;
-
-	wire	[3:0] clk_div_w;
-	wire	[3:0] cpu_clk_div_w;
-	wire	cpu_clk_w;
-	wire	cpu_clk_rize_w;
-	wire	cpu_clk_fall_w;
-
-	localparam def_clk_rize=3'b110;	// 4MHz
-	localparam def_clk_fall=3'b010;
-
-	assign clk2M=clk_div_r[3];
-
-	assign cpu_clk_rize=cpu_clk_rize_r;
-	assign cpu_clk_fall=cpu_clk_fall_r;
-	assign cpu_clk=cpu_clk_r;
-
-	always @(posedge clk32M or posedge clk_reset)
-	begin
-		if(clk_reset==1'b1)
-			begin
-				clk_div_r[3:0] <= 4'b0;
-
-				cpu_clk_div_r[3:0] <= 4'b0;
-				cpu_clk_r <= 1'b0;
-				cpu_clk_rize_r <= 1'b0;
-				cpu_clk_fall_r <= 1'b0;
-			end
-		else
-			begin
-				clk_div_r[3:0] <= clk_div_w[3:0];
-
-				cpu_clk_div_r[3:0] <= cpu_clk_div_w[3:0];
-				cpu_clk_r <= cpu_clk_w;
-				cpu_clk_rize_r <= cpu_clk_rize_w;
-				cpu_clk_fall_r <= cpu_clk_fall_w;
-			end
-	end
-
-	assign clk_div_w[3:0]=clk_div_r[3:0]+4'b01;
-
-	assign cpu_clk_div_w[3:0]=(cpu_clk_rize_r==1'b1) ? 4'b0 : cpu_clk_div_r[3:0]+4'b01;
-	assign cpu_clk_w=
-			(cpu_clk_rize_r==1'b1) ? 1'b1 :
-			(cpu_clk_rize_r==1'b0) & (cpu_clk_fall_r==1'b1) ? 1'b0 :
-			(cpu_clk_rize_r==1'b0) & (cpu_clk_fall_r==1'b0) ? cpu_clk_r :
-			1'b0;
-	assign cpu_clk_rize_w=(cpu_clk_div_r[2:0]==def_clk_rize[2:0]) ? 1'b1 : 1'b0;
-	assign cpu_clk_fall_w=(cpu_clk_div_r[2:0]==def_clk_fall[2:0]) ? 1'b1 : 1'b0;
-
 /****************************************************************************
   system reset signal
 ****************************************************************************/
 
-reg reset_dly;
-always @(posedge clk32M or posedge clk_reset)
-begin
-  if(clk_reset)
-  reset_dly <= 1'b1;
-  else if(pris32m==4'b1111)
-  reset_dly <= 1'b0;
-end
-wire sys_reset = reset_dly | ~I_IPL_n;
-
 /****************************************************************************
   Z80
 ****************************************************************************/
-wire [15:0] ZA;
-wire [7:0] ZDO,ZDI;
-wire ZMREQ_n,ZIORQ_n,ZM1_n,ZRD_n,ZWR_n, ZRFSH_n;
-wire ZCLK, ZINT_n, ZRESET_n, ZWAIT_n;
-wire ZNMI_n , ZHALT_n;
-wire ZBUSRQ_n , ZBUSAK_n;
 
-//wire debug_mode;
-//wire [3:0] ice_bank;
-wire cg_wait_n;
+	wire	sys_clk;
+	wire	sys_reset;
 
-//`ifdef EXTEND_BIOS
-/* BIOS / debug monitor */
-wire H_MREQ_n;
-wire H_NMI_n;
-wire H_INT_n;
-wire [7:0] H_DR;
+	wire	[7:0] fz_data_in;
+	wire	[15:0] fz_adr;
+	wire	fz_intreq;
+	wire	fz_nmireq;
+	wire	fz_start;
+	wire	fz_mreq;
+	wire	fz_iorq;
+	wire	fz_rd;
+	wire	fz_wr;
+	wire	[7:0] fz_data_out;
+	wire	fz_m1;
+	wire	[15:0] fz_radr;
+	wire	fz_intack;
+	wire	fz_nmiack;
+	wire	fz_waitreq;
+	wire	fz_reset_req;
 
-
-//generate
-//	if (def_EXTEND_BIOS==1)
-//begin
-//noicez80 noicez80 (
-//  .I_REM_CLK(I_USART_CLK),
-//  .I_REM_CLKE(I_USART_CLKEN16),
-//  .I_REM_RXD(I_USART_RX),
-//  .O_REM_TXD(O_USART_TX),
-//  .O_REM_MODE(debug_mode),
-//  .I_TRAP_ENABLE(ext_trap_en),
-//  .O_BANK(ice_bank),
-//// Inputs
-//  .I_RESET_n(ZRESET_n),
-//  .I_CLK(ZCLK),
-//  .I_INT_n(ZINT_n),
-//  .I_NMI_n(ZNMI_n),
-//  .I_M1_n(ZM1_n),
-//  .I_MREQ_n(H_MREQ_n),
-//  .I_IORQ_n(ZIORQ_n),
-//  .I_RD_n(ZRD_n),
-//  .I_WR_n(ZWR_n),
-//  .I_HALT_n(ZHALT_n),
-//  .I_A(ZA),
-//  .I_DW(ZDO),
-//  .I_DR(ZDI),
-//  // Outputs (hooked)
-//  .O_MREQ_n(ZMREQ_n),
-//  .O_NMI_n(H_NMI_n),
-//  .O_INT_n(H_INT_n),
-//  .O_DR(H_DR)
-//);
-//end
-//	else
-//begin
-
-//	assign debug_mode=1'b0;
-//	assign ice_bank[3:0]=4'b0;
-	assign O_USART_TX=1'b0;
-	assign ZMREQ_n=(H_MREQ_n==1'b0) & (ZRFSH_n==1'b1) ? 1'b0 : 1'b1;
-	assign H_NMI_n=ZNMI_n;
-	assign H_INT_n=ZINT_n;
-	assign H_DR=ZDI;
-
-//end
-//endgenerate
-
-fz80c Z80(
-  .reset_n(ZRESET_n),
-  .clk(ZCLK),
-  .mreq_n(H_MREQ_n), 
-  .int_n(H_INT_n),
-  .nmi_n(H_NMI_n),
-  .di(H_DR),
-  .A(ZA), .do(ZDO),
-  .m1_n(ZM1_n), .iorq_n(ZIORQ_n), 
-  .rd_n(ZRD_n), .wr_n(ZWR_n),
-  .wait_n(ZWAIT_n), .rfsh_n(ZRFSH_n),.halt_n(ZHALT_n),
-  .busrq_n(ZBUSRQ_n),.busak_n(ZBUSAK_n)
+fz80 fz80(
+	.data_in(fz_data_in[7:0]),
+	.reset_in(fz_reset_req),
+	.clk(sys_clk),
+	.adr(fz_adr[15:0]),
+	.intreq(fz_intreq),
+	.nmireq(fz_nmireq),
+	.busreq(1'b0),
+	.start(fz_start),
+	.mreq(fz_mreq),
+	.iorq(fz_iorq),
+	.rd(fz_rd),
+	.wr(fz_wr),
+	.data_out(fz_data_out[7:0]),
+	.busack_out(),
+	.intack_out(fz_intack),
+	.mr(),
+	.m1(fz_m1),
+//	.halt(fz_halt),
+	.radr(fz_radr[15:0]),
+	.nmiack_out(fz_nmiack),
+	.waitreq(fz_waitreq)
 );
 
-//	assign ZRFSH_n=1'b1;
+	wire	z_int_n;
+	wire	z_nmi_n;
+	wire	z_clk;
+	wire	z_cke;
+	wire	z_clk2;
+	wire	z_cke2;
+	wire	z_ckp;
+	wire	z_ckn;
+	wire	[15:0] z_addr;
+	wire	[7:0] z_wdata;
+	wire	[7:0] z_rdata;
+	wire	z_wait_n;
+	wire	z_iorq_n;
+	wire	z_rd_n;
+	wire	z_wr_n;
+	wire	z_m1_n;
+	wire	z_vect;
+	wire	z_reti;
+	wire	z_reset_n;
 
-	wire	zcke;
-	wire	zckn;
+	assign sys_clk=I_CLK32M;
+	assign sys_reset=I_RESET;
+	assign z_reset_n=!fz_reset_req;
 
-	assign zcke=cpu_clk_rize;
-	assign zckn=cpu_clk_fall;
+nx1_mode #(
+	.def_work_sram(def_work_sram),		// main memory sdr / syncram
+	.def_MBASE(def_MBASE),	// main memory base address
+	.def_BBASE(def_BBASE),	// bank memory base address
+	.def_VBASE(def_VBASE)	// video base address
+) mode (
+	.mem_cmd_en(mem_cmd_en),						// out   [MEM] cmd en
+	.mem_cmd_instr(mem_cmd_instr[2:0]),				// out   [MEM] cmd inst[2:0]
+	.mem_cmd_bl(mem_cmd_bl[5:0]),					// out   [MEM] cmd blen[5:0]
+	.mem_cmd_byte_addr(mem_cmd_byte_addr[29:0]),	// out   [MEM] cmd addr[29:0]
+	.mem_cmd_empty(mem_cmd_empty),					// in    [MEM] cmd empt
+	.mem_cmd_full(mem_cmd_full),					// in    [MEM] cmd full
+	.mem_wr_en(mem_wr_en),							// out   [MEM] wr en
+	.mem_wr_mask(mem_wr_mask[3:0]),					// out   [MEM] wr mask[3:0]
+	.mem_wr_data(mem_wr_data[31:0]),				// out   [MEM] wr wdata[31:0]
+	.mem_wr_full(mem_wr_full),						// in    [MEM] wr full
+	.mem_wr_empty(mem_wr_empty),					// in    [MEM] wr empt
+	.mem_wr_count(mem_wr_count[6:0]),				// in    [MEM] wr count[6:0]
+	.mem_wr_underrun(mem_wr_underrun),				// in    [MEM] wr over
+	.mem_wr_error(mem_wr_error),					// in    [MEM] wr err
+	.mem_rd_en(mem_rd_en),							// out   [MEM] rd en
+	.mem_rd_data(mem_rd_data[31:0]),				// in    [MEM] rd rdata[31:0]
+	.mem_rd_full(mem_rd_full),						// in    [MEM] rd full
+	.mem_rd_empty(mem_rd_empty),					// in    [MEM] rd empt
+	.mem_rd_count(mem_rd_count[6:0]),				// in    [MEM] rd count[6:0]
+	.mem_rd_overflow(mem_rd_overflow),				// in    [MEM] rd over
+	.mem_rd_error(mem_rd_error),					// in    [MEM] rd err
 
-assign ZNMI_n = I_NMI_n;
-assign ZCLK   = cpu_clk;
-//assign ZWAIT_n  = cg_wait_n & I_CBUS_WAIT_n;
-assign ZRESET_n = ~sys_reset;
+	.mem_init_done(vram_init_done),					// in    [MEM] init_done
+
+	.ipl_addr(ipl_addr[15:0]),						// out   [CPU] ipl rom address
+	.ipl_rdata(ipl_rdata[7:0]),						// in    [CPU] ipl read data
+	.ipl_wdata(ipl_wdata[7:0]),						// out   [CPU] dbg : ipl writre data
+	.ipl_wr(ipl_wr),								// out   [CPU] dbg : ipl writre
+	.ipl_req(ipl_req),								// out   [CPU] 
+	.ipl_ack(ipl_ack),								// in    [CPU] 
+
+	.fz_clk(sys_clk),								// in    [MEM] clk
+	.fz_rst_n(!sys_reset),							// in    [MEM] #reset
+
+	.fz_int_req(fz_intreq),							// out   [CPU] 
+	.fz_nmi_req(fz_nmireq),							// out   [CPU] 
+	.fz_int_ack(fz_intack),							// in    [CPU] 
+	.fz_nmi_ack(fz_nmiack),							// in    [CPU] 
+	.fz_reset_req(fz_reset_req),					// out   [CPU] 
+	.fz_wait(fz_waitreq),
+	.fz_start(fz_start),							// in    [FZ] start in
+	.fz_addr(fz_adr[15:0]),
+	.fz_wdata(fz_data_out[7:0]),
+	.fz_rdata(fz_data_in[7:0]),
+	.fz_m1(fz_m1),
+	.fz_rd(fz_rd),
+	.fz_wr(fz_wr),
+	.fz_mreq(fz_mreq),
+	.fz_ioreq(fz_iorq),
+
+	.cz_bank(6'b100000),
+	.cz_ipl(),
+	.cz_multiplane(),
+
+	.z_int_n(z_int_n),								// in    [Z80]
+	.z_nmi_n(z_nmi_n),								// in    [Z80]
+	.z_clk(z_clk),									// out   [Z80] 
+	.z_cke(z_cke),									// out   [Z80] 
+	.z_clk2(z_clk2),								// out   [Z80] 
+	.z_cke2(z_cke2),								// out   [Z80] 
+	.z_ckp(z_ckp),									// out   [Z80] 
+	.z_ckn(z_ckn),									// out   [Z80] 
+	.z_addr(z_addr[15:0]),							// out   [Z80] 
+	.z_wdata(z_wdata[7:0]),							// out   [Z80] 
+	.z_rdata(z_addr[7:0]),							// in    [Z80] 
+	.z_wait_n(z_wait_n),							// in    [Z80] 
+	.z_iorq_n(z_iorq_n),							// out   [Z80] 
+	.z_rd_n(z_rd_n),								// out   [Z80] 
+	.z_wr_n(z_wr_n),								// out   [Z80] 
+	.z_m1_n(z_m1_n),								// out   [Z80] 
+	.z_vect(z_vect),								// out   [Z80] 
+	.z_reti(z_reti)									// out   [Z80] 
+);
+
+	wire	cg_wait_n;
+
+	assign z_nmi_n = I_NMI_n;
 
 /****************************************************************************
   Z80 daisychain INT
@@ -415,7 +428,8 @@ assign ctc_iei = dma_ieo;
 assign sub_iei = (def_X1TURBO==1'b0) ? 1'b1 : ctc_ieo;
 
 // wired or
-assign ZINT_n  = (def_X1TURBO==1'b0) ? sub_int_n : slot1_int_n & slot2_int_n & sio_int_n & dma_int_n & ctc_int_n & sub_int_n;
+
+	assign z_int_n  = (def_X1TURBO==1'b0) ? sub_int_n : slot1_int_n & slot2_int_n & sio_int_n & dma_int_n & ctc_int_n & sub_int_n;
 
 //`else // X1
 //assign sub_iei = 1'b1;
@@ -424,66 +438,25 @@ assign ZINT_n  = (def_X1TURBO==1'b0) ? sub_int_n : slot1_int_n & slot2_int_n & s
 
 /****************************************************************************
   system bus MUX
-
   master
   Z80DMA  (with RFSH hack access for FDD data)
   Z80 CPU (with Z80 DEBUGGER)
 ****************************************************************************/
+
+/****************************************************************************
+  Z80 interruput support signal
+****************************************************************************/
+
+/****************************************************************************
+  Address Decoder
+****************************************************************************/
+
 wire [3:0]  dma_bank;
 wire [15:0] dma_a;
 wire [7:0] dma_do,dma_di;
 wire dma_mreq_n,dma_iorq_n,dma_rd_n,dma_wr_n;
 wire dma_sel;
 
-wire [7:0] sdi;
-
-wire [3:0]  sbank;
-wire [15:0] sa;
-wire sm1_n,smreq_n,siorq_n,srd_n,swr_n;
-	wire	[7:0] sdo;
-
-	assign sbank[3:0]=4'b0;
-	assign sa[15:0]=ZA[15:0];
-	assign smreq_n=ZMREQ_n;
-	assign sireq_n=ZIORQ_n;
-	assign srd_n=ZRD_n;
-	assign swr_n=ZWR_n;
-	assign sdo[7:0]=ZDO[7:0];
-
-//assign sbank   = dma_sel ? dma_bank   : ice_bank;
-//assign sa    = dma_sel ? dma_a    : ZA;
-//assign smreq_n = dma_sel ? dma_mreq_n : ZMREQ_n;
-//assign sireq_n = dma_sel ? dma_iorq_n : ZIORQ_n;
-//assign srd_n   = dma_sel ? dma_rd_n   : ZRD_n;
-//assign swr_n   = dma_sel ? dma_wr_n   : ZWR_n;
-//assign sdo     = dma_sel ? dma_do   : ZDO;
-//`endif
-
-assign ZDI    = sdi;
-assign dma_di = sdi;
-
-/****************************************************************************
-  Z80 interruput support signal
-****************************************************************************/
-wire zreti;
-wire zspm1;
-
-z80_reti z80_reti(
-  .I_RESET(~ZRESET_n),
-  .I_CLK(ZCLK),
-  .I_CLKEN(1'b1),
-  .I_M1_n(ZM1_n),
-  .I_MREQ_n(smreq_n),
-  .I_IORQ_n(sireq_n),
-  .I_D(sdo),
-//
-  .O_RETI(zreti),
-  .O_SPM1(zspm1)
-);
-
-/****************************************************************************
-  Address Decoder
-****************************************************************************/
 //wire ipl_enable;
 //wire dam_enable;
 
@@ -491,10 +464,6 @@ wire ipl_sel;
 wire dam;
 
 // chip selects
-wire ipl_cs;
-wire ram_cs;
-wire ipl_set_cs;
-wire ipl_res_cs;
 wire emm_cs;
 wire exrom_cs;
 wire kanrom_cs;
@@ -507,10 +476,6 @@ wire pia_cs;
 wire psg_cs;
 wire attr_cs;
 wire text_cs;
-wire gr_b_cs;
-wire gr_r_cs;
-wire gr_g_cs;
-wire dam_clr;
 //`ifdef FM_BOARD
 wire fm_cs;
 wire fm_ctc_cs;
@@ -534,16 +499,16 @@ nx1_adec #(
 	.def_FDC(1),					// onboard fdc
 	.def_FM_BOARD(def_FM_BOARD)		// YM2151 FM sound board (not supported yet)
 ) nx1_adec (
-  .I_RESET(sys_reset),
-  .I_CLK(clk32M),
-  .I_A(sa),
-  .I_MREQ_n(smreq_n),.I_IORQ_n(sireq_n),.I_RD_n(srd_n),.I_WR_n(swr_n),
+  .I_RESET(!z_reset_n),
+  .I_CLK(sys_clk),
+  .I_A(z_addr[15:0]),
+  .I_MREQ_n(1'b1),.I_IORQ_n(z_iorq_n),.I_RD_n(z_rd_n),.I_WR_n(z_wr_n),
 // mode / switch
-  .I_IPL_SEL(ipl_sel),// & ipl_enable),
-  .I_DAM(dam),// & dam_enable),
+  .I_IPL_SEL(1'b0),// & ipl_enable),
+  .I_DAM(1'b0),// & dam_enable),
   .I_DEFCHR(defchr_enable),
 // memory
-  .O_IPL_CS(ipl_cs),.O_RAM_CS(ram_cs),
+  .O_IPL_CS(),.O_RAM_CS(),
 // chip select
   .O_EMM_CS(emm_cs),
   .O_EXTROM_CS(exrom_cs),
@@ -555,11 +520,11 @@ nx1_adec #(
   .O_SUB_CS(sub_cs),
   .O_PIA_CS(pia_cs),
   .O_PSG_CS(psg_cs),
-  .O_IPL_SET_CS(ipl_set_cs),
-  .O_IPL_RES_CS(ipl_res_cs),
+  .O_IPL_SET_CS(),
+  .O_IPL_RES_CS(),
 // VRAM
   .O_ATTR_CS(attr_cs),.O_TEXT_CS(text_cs),
-  .O_GRB_CS(gr_b_cs),.O_GRR_CS(gr_r_cs),.O_GRG_CS(gr_g_cs),
+  .O_GRB_CS(),.O_GRR_CS(),.O_GRG_CS(),
 // option board
 //`ifdef FM_BOARD
   .O_FM_CS(fm_cs),.O_FMCTC_CS(fm_ctc_cs),
@@ -578,7 +543,7 @@ nx1_adec #(
   .O_KANJI_CS(ktext_cs),
 //`endif
 // DOUJI access mode clear
-  .O_DAM_CLR(dam_clr)
+  .O_DAM_CLR()
 );
 
 // subcpu debug download mode
@@ -586,7 +551,6 @@ nx1_adec #(
 //wire firm_cs = firm_en & ~ZMREQ_n;
 
 // data input
-wire [7:0] sram_dr;   // MAIN RAM
 wire [7:0] exrom_dr;  // external ROM
 wire [7:0] sub_rd;    // subcpu RD / 5'FDD
 wire [7:0] text_rd;   // text VRAM
@@ -610,14 +574,14 @@ wire sio_doe = 1'b0;
 
 // address decoder
 wire sub_doe;
-wire sram_doe = ipl_cs | ram_cs | gr_b_cs | gr_r_cs | gr_g_cs;
+wire sram_doe = 1'b0;
 
 //	localparam busfree=8'h00;	// or tie
 	localparam busfree=8'hff;	// and tie
 
-assign ZWAIT_n  = cg_wait_n & I_CBUS_WAIT_n & fd5_wait_n;
+assign z_wait_n  = cg_wait_n & fd5_wait_n;
 
-assign sdi    =
+assign z_rdata    =
 	fd5_cs ? fd5_rdata :
   ctc_doe   ? ctc_rd  :
   dma_doe   ? dma_rd  :
@@ -627,7 +591,6 @@ assign sdi    =
   pia_cs    ? pia_dr  :
   psg_cs    ? psg_dr  :
   exrom_cs    ? exrom_dr :
-  sram_doe    ? sram_dr :
   text_cs   ? text_rd :
   attr_cs   ? attr_rd :
   ktext_cs    ? ktext_rd :
@@ -643,18 +606,18 @@ n8877 #(
 	.frd(frd),						// out   [MEM] rd req
 	.frdata(frdata[15:0]),			// in    [MEM] read data
 
-	.addr(ZA[2:0]),
-	.wdata(sdo[7:0]),
+	.addr(z_addr[2:0]),
+	.wdata(z_wdata[7:0]),
 	.rdata(fd5_rdata[7:0]),
-	.wr(!swr_n),
+	.wr(!z_wr_n),
 //	input			req,
 //	output			ack,
 
-	.cs(({fd5_cs,swr_n}==2'b10) | ({fd5_cs,srd_n}==2'b10)),
+	.cs(({fd5_cs,z_wr_n}==2'b10) | ({fd5_cs,z_rd_n}==2'b10)),
 	.wait_n(fd5_wait_n),
 
-	.rst_n(!sys_reset),
-	.clk(clk32M)
+	.rst_n(z_reset_n),
+	.clk(sys_clk)
 );
 
 
@@ -681,7 +644,7 @@ wire [7:0] pcm_out; // SEEK SOUND
 wire clk1;   // for text Blink
 
 // firmware download
-wire sub_reset = sys_reset;// | firm_en;
+wire sub_reset = !z_reset_n;// | firm_en;
 
 // DMA / fdd emu
 assign dma_sel = 1'b0;//(~ZRFSH_n | ~ZBUSAK_n) & ~firm_en;
@@ -693,26 +656,26 @@ nx1_sub #(
 ) x1_sub (
   .I_reset(sub_reset),
 // SUBCPU (DMAC) basic clock
-  .I_clk(clk32M),
+  .I_clk(sys_clk),
 // Z80 system bus
   .I_cs(sub_cs),
-  .I_rd(~srd_n),
-  .I_wr(~swr_n),
-  .I_M1_n(ZM1_n),
-  .I_D(sdo),
-  .O_D(sub_rd),
+  .I_rd(~z_rd_n),
+  .I_wr(~z_wr_n),
+  .I_M1_n(1'b1),
+  .I_D(z_wdata[7:0]),
+  .O_D(sub_rd[7:0]),
   .O_DOE(sub_doe),
 // handshake
   .O_TX_BSY(sub_tx_bsy),
   .O_RX_BSY(sub_rx_bsy),
   .O_KEY_BRK_n(key_brk_n),
 // subcpu int controll
-  .I_SPM1(zspm1),
-  .I_RETI(zreti),
+  .I_SPM1(z_vect),
+  .I_RETI(z_reti),
   .I_IEI(sub_iei),
   .O_INT_n(sub_int_n),
 // SUBCPU Firmware Access Port
-  .I_fa(sa[12:0]),
+  .I_fa(z_addr[12:0]),
   .I_fcs(1'b0),//firm_cs),
 // FD emulation
   .O_FDC_DRQ_n(fd5_drq),
@@ -729,7 +692,7 @@ nx1_sub #(
   .O_DMA_IORQ_n(dma_iorq_n),
   .O_DMA_RD_n(dma_rd_n),
   .O_DMA_WR_n(dma_wr_n),
-  .O_DMA_BUSRQ_n(ZBUSRQ_n),
+  .O_DMA_BUSRQ_n(),//ZBUSRQ_n),
   .I_DMA_BUSAK_n(1'b1),//ZBUSAK_n),
   .I_DMA_RDY(1'b0),//fd5_drq),
   .I_DMA_WAIT_n(1'b0),//ZWAIT_n),
@@ -772,16 +735,9 @@ wire cmt_read = 1'b0;
 	wire	[7:0] pia_b;
 	wire	[7:0] pia_c;
 
-//`ifdef X1TURBO
-//wire [7:0] pia_b = {vblank_n,sub_tx_bsy,sub_rx_bsy,ipl_sel,lpt_rdy,vsync,cmt_read,key_brk_n};
-//`else
-//wire [7:0] pia_b = {vblank_n,sub_tx_bsy,sub_rx_bsy,1'b1,lpt_rdy,vsync,cmt_read,key_brk_n};
-//`endif
-
 	assign pia_b[7:0]=(def_X1TURBO==0) ? {vblank_n,sub_tx_bsy,sub_rx_bsy,1'b1,lpt_rdy,vsync,cmt_read,key_brk_n} : {vblank_n,sub_tx_bsy,sub_rx_bsy,ipl_sel,lpt_rdy,vsync,cmt_read,key_brk_n};
 
 wire lpt_stb   = pia_c[7];
-//wire width40   = (DEBUG==1) ? 1'b1 : pia_c[6];	// <-- disp width debug
 wire width40   = pia_c[6];
 wire dam_en_n  = pia_c[5]; // DOUJI ACCESS fall trigger
 wire sm_scrl_n = pia_c[4]; // smooth scroll (L)
@@ -789,12 +745,12 @@ wire sm_scrl_n = pia_c[4]; // smooth scroll (L)
 /*
 //PIA8255 pia(
 nx1_8255 pia(
-  .I_RESET(sys_reset),
-  .I_A(sa[1:0]),
+  .I_RESET(!z_reset_n),
+  .I_A(z_addr[1:0]),
   .I_CS(pia_cs),
-  .I_RD(~srd_n),
-  .I_WR(~swr_n),
-  .I_D(sdo),
+  .I_RD(~z_rd_n),
+  .I_WR(~z_wr_n),
+  .I_D(z_wdata),
   .O_D(pia_dr),
 //
   .I_PA(8'h00), .O_PA(pia_a),
@@ -808,19 +764,15 @@ nx1_8255 pia(
 n8255 #(
 	.busfree(busfree)
 ) pia (
-	.CLK(clk32M),			// in    [CPU] clk
-	.RESET(sys_reset),		// in    [CPU] reset
-	.ADDR(sa[1:0]),			// in    [CPU] addr[1:0]
-//	.REQ,					// in    [CPU] req
-//	.ACK,					// out   [CPU] ack/#wait
-	.WR(!swr_n),			// in    [CPU] wr
-	.WDATA(sdo[7:0]),		// in    [CPU] cs
-	.RDATA(pia_dr[7:0]),	// in    [CPU] cs
+	.CLK(z_clk),			// in    [CPU] clk
+	.CKE(z_cke),			// in    [CPU] cke
+	.RESET(!z_reset_n),		// in    [CPU] reset
+	.ADDR(z_addr[1:0]),		// in    [CPU] addr[1:0]
+	.WR(!z_wr_n),			// in    [CPU] wr
+	.WDATA(z_wdata[7:0]),	// in    [CPU] write data
+	.RDATA(pia_dr[7:0]),	// out   [CPU] read data
+	.CS(pia_cs),			// in    [CPU] cs
 
-	.CS(({pia_cs,swr_n}==2'b10) | ({pia_cs,srd_n}==2'b10)),
-	.WAIT_N(),
-
-	.PC5_fall(),			// out   [PPI] multibank req
 	.PA_IN(8'b0),			// in    [PPI] na
 	.PB_IN(pia_b[7:0]),		// in    [PPI] -- 
 	.PC_IN(8'b0),			// in    [PPI] na
@@ -851,15 +803,15 @@ wire [7:0] PSG_OUT;
 wire [9:0] PSG_OUT_A,PSG_OUT_B,PSG_OUT_C;
 
 ay8910 PSG(
-  .rst_n(~sys_reset),
-  .clk(clk2M),
+  .rst_n(z_reset_n),
+  .clk(z_clk2),
   .clken(1'b1),
-  .asel(~sa[8]),
+  .asel(~z_addr[8]),
   .cs_n(~psg_cs),
   .direct_sel(0),
-  .wr_n(swr_n),
-  .rd_n(srd_n),
-  .di(sdo),
+  .wr_n(z_wr_n),
+  .rd_n(z_rd_n),
+  .di(z_wdata[7:0]),
   .do(psg_dr),
   .A(PSG_OUT_A) ,
   .B(PSG_OUT_B) ,
@@ -880,26 +832,6 @@ assign PCM_R = {PSG_MIX,4'b0000};
   mode swithes
 ****************************************************************************/
 
-nx1_mode #(
-	.def_use_ipl(def_use_ipl)
-) x1_mode (
-  .I_RESET(sys_reset),
-  .C_CLK(ZCLK),
-  .I_A(sa),
-  .I_D(sdo),
-  .I_RD(~srd_n),
-  .I_WR(~swr_n),
-// IPL select,
-  .I_IPL_SET_CS(ipl_set_cs),
-  .I_IPL_RES_CS(ipl_res_cs),
-  .O_IPL_SEL(ipl_sel),
-// DOUJI access mode (GRAPHIC)
-  .C_DAM_SET_n(dam_en_n), // fall clk
-  .I_DAM_CLR(dam_clr),   // async 
-  .O_DAM(dam)
-);
-
-//`ifdef X1TURBO
 /****************************************************************************
   X1turbo mode swithes
 ****************************************************************************/
@@ -923,13 +855,13 @@ wire x1tm_doe;
 nx1_tmode #(
 	.def_X1TURBO(def_X1TURBO)		// 0=X1 , 1=X1turbo (subset yet) , 2=X1TURBOZ (future...)
 ) x1t_mode (
-  .I_RESET(sys_reset),
-  .CLK(ZCLK),
-  .I_D(sdo),
+  .I_RESET(!z_reset_n),
+  .CLK(z_clk),
+  .I_D(z_wdata),
   .O_D(x1tm_rd),
   .O_DOE(x1tm_doe),
-  .I_WR(~swr_n),
-  .I_RD(~srd_n),
+  .I_WR(~z_wr_n),
+  .I_RD(~z_rd_n),
   .I_P1FD0_CS(p1fd0_cs),
   .I_P1FE0_CS(black_cs),
   .O_HIRESO(hireso),
@@ -946,7 +878,6 @@ nx1_tmode #(
   .O_GR1_BLACK(gr1_black),
   .O_BLK_BLACK(blk_black)
 );
-//`endif
 
 /****************************************************************************
   VIDEO circuit
@@ -964,19 +895,18 @@ wire vwait;
 	wire	[7:0] green;
 	wire	[7:0] blue;
 
-	assign z_addr[15:0]=sa[15:0];
-	assign z_dbg_rdata[7:0]=H_DR[7:0];
-	assign z_mreq=!smreq_n;
-	assign z_ioreq=!sireq_n;
-	assign z_wr=!swr_n;
-	assign z_rd=!srd_n;
-	assign z_vplane={gr_g_cs,gr_r_cs,gr_b_cs,1'b0};
-	assign z_multiplane=dam;
+	assign z_dbg_addr[15:0]=z_addr[15:0];
+	assign z_dbg_rdata[7:0]=z_rdata[7:0];
+	assign z_dbg_wdata[7:0]=z_wdata[7:0];
+	assign z_mreq=1'b0;
+	assign z_ioreq=!z_iorq_n;
+	assign z_wr=!z_wr_n;
+	assign z_rd=!z_rd_n;
 
-	assign dbg_addr[15:0]=sa[15:0];
-		//	(DEBUG==0) ? sa[15:0] :
-		//	(DEBUG==1) & (text_cs==1'b1) ? sa[15:0] :
-		//	(DEBUG==1) & (text_cs==1'b0) ? {8'b0,sa[7:0]} :
+	assign dbg_addr[15:0]=z_addr[15:0];
+		//	(DEBUG==0) ? z_addr[15:0] :
+		//	(DEBUG==1) & (text_cs==1'b1) ? z_addr[15:0] :
+		//	(DEBUG==1) & (text_cs==1'b0) ? {8'b0,z_addr[7:0]} :
 		//	16'b0;
 
 	assign dbg_text_cs=text_cs;
@@ -1025,22 +955,21 @@ nx1_vid #(
 	.vram_rd_overflow(vram_rd_overflow),			// in    [VRAM] rd over
 	.vram_rd_error(vram_rd_error),					// in    [VRAM] rd err
 
-	.I_RESET(sys_reset),
-	.I_CCLK(clk32M),//ZCLK),
-	.I_CCKE(zcke),//ZCLK),
+	.I_RESET(!z_reset_n),
+	.I_CCLK(sys_clk),//z_clk),
+	.I_CCKE(z_cke & z_ckp),//z_clk),
   .I_A(dbg_addr),
-  .I_D(sdo),
+  .I_D(z_wdata),
   .O_D(vid_dr),
   .O_DE(vid_re),
-  .I_WR(~swr_n),
-  .I_RD(~srd_n),
+  .I_WR(~z_wr_n),
+  .I_RD(~z_rd_n),
   .O_VWAIT(vwait),
   .defchr_enable(defchr_enable),
   .I_CRTC_CS(crtc_cs),
   .I_CG_CS(cg_cs),
   .I_PAL_CS(pal_cs),
   .I_TXT_CS(dbg_text_cs), .I_ATT_CS(attr_cs), .I_KAN_CS(ktext_cs),
-//  .I_GRB_CS(gr_b_cs), .I_GRR_CS(gr_r_cs), .I_GRG_CS(gr_g_cs),
   .I_VCLK(EX_CLK),  .I_CLK1(clk1),
   .I_W40(width40),
   .I_HIRESO(hireso),
@@ -1114,25 +1043,25 @@ wire [3:0] ctc_to;
 wire [3:0] ctc_ti;
 
 assign ctc_ti[0] = 1'b1;
-assign ctc_ti[1] = clk2M;
-assign ctc_ti[2] = clk2M;
+assign ctc_ti[1] = z_clk2;
+assign ctc_ti[2] = z_clk2;
 assign ctc_ti[3]   = ctc_to[0]; // Ch0 -> CH3 chain
 
 z80ctc z80ctc(
-  .I_RESET(sys_reset),
-  .I_CLK(ZCLK),
+  .I_RESET(!z_reset_n),
+  .I_CLK(z_clk),
   .I_CLKEN(1'b1),
-  .I_A(sa[1:0]),
-  .I_D(sdo),
+  .I_A(z_addr[1:0]),
+  .I_D(z_wdata),
   .O_D(ctc_rd),
   .O_DOE(ctc_doe),
   .I_CS_n(~z80ctc_cs),
-  .I_WR_n(swr_n),
-  .I_RD_n(srd_n),
-  .I_M1_n(ZM1_n),
+  .I_WR_n(z_wr_n),
+  .I_RD_n(z_rd_n),
+  .I_M1_n(z_m1_n),
 // irq handling
-  .I_SPM1(zspm1),
-  .I_RETI(zreti),
+  .I_SPM1(z_vect),
+  .I_RETI(z_reti),
   .I_IEI(ctc_iei),
   .O_IEO(ctc_ieo),
   .O_INT_n(ctc_int_n),
@@ -1163,22 +1092,6 @@ assign sio_rd = (def_X1TURBO==0) ? 8'b0 : 8'h00;
 assign dma_rd = 8'h00;
 //`endif
 
-
-	assign O_CBUS_BANK    = sbank;
-	assign O_CBUS_ADDRESS = sa;
-	assign O_CBUS_DATA    = sdo;
-	assign sram_dr     = I_CBUS_DATA;
-	assign O_CBUS_RD_n = srd_n;
-	assign O_CBUS_WR_n = swr_n;
-	assign O_CBUS_CS_IPL = ipl_cs;
-	assign O_CBUS_CS_MRAM = ram_cs;// & ~firm_cs; // block SUB-CPU FIRM CS
-	assign O_CBUS_CS_GRAMB = gr_b_cs;
-	assign O_CBUS_CS_GRAMR = gr_r_cs;
-	assign O_CBUS_CS_GRAMG = gr_g_cs;
-
-	assign O_CBUS_BANK_GRAM_R=gram_rp;
-	assign O_CBUS_BANK_GRAM_W=gram_wp;
-
 /****************************************************************************
   SPI I/F
 ****************************************************************************/
@@ -1196,9 +1109,9 @@ assign dma_rd = 8'h00;
 
 	assign spi_din=(spi_cs[1]==1'b1) ? I_MMC_DIN : 1'b0;
 
-always @(posedge clk32M or negedge ZRESET_n)
+always @(posedge sys_clk or negedge z_reset_n)
 begin
-  if(~ZRESET_n)
+  if(~z_reset_n)
   begin
   spi_clk  <= 1'b0;
   spi_cs   <= 2'b00;
@@ -1207,16 +1120,16 @@ begin
   spi_do   <= 1'b0;
   end else begin
    if(~spi_clk)
-     spi_do <= sdo[0];
+     spi_do <= z_wdata[0];
 
   // cs access
-  if(exrom_cs & ~swr_n)
+  if(exrom_cs & ~z_wr_n)
   begin
-    spi_cnt  <= sa[3:0];
-    spi_cs   <= sa[5:4];
-    if(~sa[6])
+    spi_cnt  <= z_addr[3:0];
+    spi_cs   <= z_addr[5:4];
+    if(~z_addr[6])
     begin
-    spi_sreg <= sdo[7:0];
+    spi_sreg <= z_wdata[7:0];
     end
   end else begin
     if(spi_cnt != 0)

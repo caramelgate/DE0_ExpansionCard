@@ -360,12 +360,6 @@ crtc45e #(
 	.I_RSTn(~I_RESET),
 	.I_W40(I_W40),
 
-	.QA(QA),
-	.QB(QB),
-	.QC(QC),
-	.QD(QD),
-	.QP(QP),
-
 	.vclk_shift(vclk_shift),	
 	.vclk_even(vclk_even),	
 
@@ -677,32 +671,31 @@ endgenerate
 // 3xLS14 & RC delay(220ohm,1200pF)
 // about 300ns = 35ns(28.6Mhz) * 8.5
 //
-reg vdisp;
-reg vdisp_dly;
-
-	always @(posedge I_VCLK or posedge I_RESET)
-	begin
-		if (I_RESET==1'b1)
-			begin
-				vdisp <= 1'b0;
-				vdisp_dly <= 1'b0;
-			end
-		else
-			begin
-				if(crtc_ra[0])
-					vdisp_dly <= 1;
-				else 
-					begin
-						// latch VDISP
-						if(~QP & QA & ~QD & ~QC & ~QB)
-							begin
-								if(vdisp_dly)
-									vdisp <= crtc_de;
-								vdisp_dly <= 1'b0;
-							end
-					end
-			end
-	end
+//reg vdisp;
+//reg vdisp_dly;
+//	always @(posedge I_VCLK or posedge I_RESET)
+//	begin
+//		if (I_RESET==1'b1)
+//			begin
+//				vdisp <= 1'b0;
+//				vdisp_dly <= 1'b0;
+//			end
+//		else
+//			begin
+//				if(crtc_ra[0])
+//					vdisp_dly <= 1;
+//				else 
+//					begin
+//						// latch VDISP
+//						if(~QP & QA & ~QD & ~QC & ~QB)
+//							begin
+//								if(vdisp_dly)
+//									vdisp <= crtc_de;
+//								vdisp_dly <= 1'b0;
+//							end
+//					end
+//			end
+//	end
 
 //	wire [10:0] vram_a;
 //	assign  vram_a[10:0]= (I_PCG_TURBO && ~crtc_de) ? 11'b11111111111 : crtc_ma;
@@ -911,6 +904,11 @@ reg vdisp_dly;
 	wire	gr_priority;
 	wire	[2:0] gr_palette;
 
+	reg		[7:0] PAL_B;
+	reg		[7:0] PAL_R;
+	reg		[7:0] PAL_G;
+	reg		[7:0] PRIO_R;
+
 	assign {gr_priority,gr_palette[2:0]}=
 			(gr_vdata[2:0]==3'b000) ? {PRIO_R[0],PAL_G[0],PAL_R[0],PAL_B[0]} :
 			(gr_vdata[2:0]==3'b001) ? {PRIO_R[1],PAL_G[1],PAL_R[1],PAL_B[1]} :
@@ -962,7 +960,7 @@ reg vdisp_dly;
 	assign O_YM=1'b0;
 	assign O_HSYNC=delay_hs_r[4];
 	assign O_VSYNC=delay_vs_r[4];
-	assign O_VDISP=vdisp;
+	assign O_VDISP=delay_cde_r[4];//vdisp;
 
 	assign C_CGA[10:0]={text_vdata_r[7:0],crtc_ra[2:0]};
 	assign V_CGA[10:0]={text_vdata_r[7:0],crtc_ra[2:0]};	// <-- 
@@ -971,18 +969,13 @@ reg vdisp_dly;
 //	assign C_CGA = { txt_d, x1t_cg_sel ? I_A[3:1] : cg_line };
 //	assign V_CGA = { txt_d, x1t_cg_sel ? I_A[3:1] : cg_line };
 
-	reg		[7:0] PAL_B;
-	reg		[7:0] PAL_R;
-	reg		[7:0] PAL_G;
-	reg		[7:0] PRIO_R;
-
 always @(posedge I_CCLK or posedge I_RESET)
 begin
   if(I_RESET)
   begin
-    PAL_B  <= 8'haa;
-    PAL_R  <= 8'hcc;
-    PAL_G  <= 8'hf0;
+    PAL_B  <= (DEBUG==1) ? 8'haa : 8'b0;
+    PAL_R  <= (DEBUG==1) ? 8'hcc : 8'b0;
+    PAL_G  <= (DEBUG==1) ? 8'hf0 : 8'b0;
     PRIO_R <= 8'h00;
   end else begin
     if(I_PAL_CS & I_WR)

@@ -49,7 +49,7 @@ module nx1_mgsdr #(
 	output	[2:0]	mem_rd_master,		// out   [MEM] rd master[2:0]
 
 	output			mem_init_done,		// out   [SYS] init_done
-//	input			mem_clk1,			// in    [SYS] clk +90deg
+	input			mem_clk1,			// in    [SYS] clk +90deg
 	input			mem_clk,			// in    [SYS] clk 54MHz
 	input			mem_rst_n			// in    [SYS] #reset
 );
@@ -79,8 +79,8 @@ generate
 	if (DEVICE==0)
 begin
 
-//ODDR oddr_sdrclk(.Q(sdr_clk),.C(mem_clk1),.CE(1'b1),.D1(1'b1),.D2(1'b0),.R(1'b0),.S(1'b0));
-ODDR oddr_sdrclk(.Q(sdr_clk),.C(mem_clk),.CE(1'b1),.D1(1'b0),.D2(1'b1),.R(1'b0),.S(1'b0));
+ODDR oddr_sdrclk(.Q(sdr_clk),.C(mem_clk1),.CE(1'b1),.D1(1'b1),.D2(1'b0),.R(1'b0),.S(1'b0));
+//ODDR oddr_sdrclk(.Q(sdr_clk),.C(mem_clk),.CE(1'b1),.D1(1'b0),.D2(1'b1),.R(1'b0),.S(1'b0));
 
 end
 endgenerate
@@ -88,7 +88,7 @@ endgenerate
 generate
 	if (DEVICE==1)
 begin
-/*
+
 alt_altddio_bidir altddio_sdrclk (
 	.aclr(!mem_rst_n),
 	.datain_h(1'b1),
@@ -101,7 +101,8 @@ alt_altddio_bidir altddio_sdrclk (
 	.dataout_l(),
 	.padio(sdr_clk)
 );
-*/
+
+/*
 alt_altddio_bidir altddio_sdrclk (
 	.aclr(!mem_rst_n),
 	.datain_h(1'b0),
@@ -114,15 +115,15 @@ alt_altddio_bidir altddio_sdrclk (
 	.dataout_l(),
 	.padio(sdr_clk)
 );
-
+*/
 end
 endgenerate
 
 generate
 	if ((DEVICE!=0) & (DEVICE!=1))
 
-//	assign sdr_clk=mem_clk1;
-	assign sdr_clk=mem_clk;
+	assign sdr_clk=mem_clk1;
+//	assign sdr_clk=mem_clk;
 
 endgenerate
 
